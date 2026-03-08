@@ -1,0 +1,139 @@
+/**app.wxss**/
+page {
+  --primary-color: #7C4DFF;
+  --primary-light: #B388FF;
+  --primary-dark: #651FFF;
+  --success-color: #4CAF50;
+  --warning-color: #FF9800;
+  --danger-color: #F44336;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-hint: #999999;
+  --bg-primary: #F5F5F5;
+  --bg-white: #FFFFFF;
+  --border-color: #E0E0E0;
+  
+  --color-blue: #E3F2FD;
+  --color-purple: #F3E5F5;
+  --color-orange: #FFF3E0;
+  --color-green: #E8F5E9;
+  --color-pink: #FCE4EC;
+  
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--bg-primary);
+}
+
+.container {
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
+.card {
+  background: var(--bg-white);
+  border-radius: 24rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx 40rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:active {
+  background: var(--primary-dark);
+}
+
+.btn-secondary {
+  background: #F0F0F0;
+  color: var(--text-primary);
+}
+
+.btn-secondary:active {
+  background: #E0E0E0;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mt-20 {
+  margin-top: 20rpx;
+}
+
+.mb-20 {
+  margin-bottom: 20rpx;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.pulse {
+  animation: pulse 0.3s ease-in-out;
+}
+
+@keyframes checkmark {
+  0% {
+    transform: scale(0) rotate(-45deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(-45deg);
+  }
+  100% {
+    transform: scale(1) rotate(-45deg);
+  }
+}
+
+.checkmark-animate {
+  animation: checkmark 0.3s ease-out;
+}

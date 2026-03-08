@@ -1,0 +1,24 @@
+# 微信小程序
+# 忽略开发者工具生成的临时文件
+node_modules/
+miniprogram_npm/
+
+# 忽略本地配置文件（包含敏感信息）
+project.private.config.json
+
+# 忽略日志文件
+*.log
+
+# 忽略系统文件
+.DS_Store
+Thumbs.db
+
+# 忽略 IDE 配置文件
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 忽略构建输出
+dist/
+build/

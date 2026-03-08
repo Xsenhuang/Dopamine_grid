@@ -1,0 +1,71 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 进度卡片 -->
+  <view class="card progress-card">
+    <view class="progress-header">
+      <view class="progress-text">
+        <text class="progress-title">今日完成进度</text>
+        <text class="progress-subtitle">{{progressText}}</text>
+      </view>
+      <view class="progress-circle">
+        <view class="circle-bg">
+          <text class="percentage">{{progressPercent}}%</text>
+        </view>
+      </view>
+    </view>
+    <view class="progress-bar-container">
+      <view class="progress-bar-bg">
+        <view class="progress-bar-fill" style="width: {{progressPercent}}%"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- Bingo 格子 -->
+  <view class="card bingo-card">
+    <view class="bingo-grid" style="grid-template-columns: repeat({{gridSize}}, 1fr);">
+      <view 
+        wx:for="{{tasks}}" 
+        wx:for-index="index"
+        wx:key="id"
+        class="bingo-cell {{item.completed ? 'completed' : ''}} {{item.animating ? 'pulse' : ''}}"
+        style="background-color: {{item.color}}; display: {{index < gridSize * gridSize ? 'flex' : 'none'}};"
+        bindtap="toggleTask"
+        data-id="{{item.id}}"
+      >
+        <text class="cell-text">{{item.name}}</text>
+        <view wx:if="{{item.completed}}" class="checkmark checkmark-animate">
+          <view class="check-icon">✓</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部功能按钮 -->
+  <view class="bottom-actions">
+    <view class="action-btn" bindtap="goToTasks">
+      <text class="btn-icon">📝</text>
+      <text class="btn-text">任务</text>
+    </view>
+    <view class="action-btn primary" bindtap="randomizeTasks">
+      <text class="btn-icon">🎲</text>
+      <text class="btn-text">随机</text>
+    </view>
+    <view class="action-btn" bindtap="resetAll">
+      <text class="btn-icon">↺</text>
+      <text class="btn-text">重置</text>
+    </view>
+    <view class="action-btn" bindtap="showReward">
+      <text class="btn-icon">🏆</text>
+      <text class="btn-text">奖励</text>
+    </view>
+  </view>
+</view>
+
+<!-- 完成庆祝弹窗 -->
+<view wx:if="{{showCelebration}}" class="celebration-overlay" bindtap="hideCelebration">
+  <view class="celebration-content">
+    <text class="celebration-emoji">🎉</text>
+    <text class="celebration-title">太棒了！</text>
+    <text class="celebration-text">你完成了今日所有任务！</text>
+  </view>
+</view>

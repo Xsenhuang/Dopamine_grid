@@ -1,0 +1,238 @@
+/* pages/index/index.wxss */
+.container {
+  padding: 20rpx;
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding-bottom: 160rpx;
+}
+
+/* 进度卡片 */
+.progress-card {
+  padding: 40rpx;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.progress-text {
+  flex: 1;
+}
+
+.progress-title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12rpx;
+}
+
+.progress-subtitle {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+.progress-circle {
+  width: 120rpx;
+  height: 120rpx;
+  margin-left: 20rpx;
+}
+
+.circle-bg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.percentage {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: white;
+}
+
+.progress-bar-container {
+  width: 100%;
+}
+
+.progress-bar-bg {
+  height: 16rpx;
+  background: #F0F0F0;
+  border-radius: 8rpx;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-light) 0%, var(--primary-color) 100%);
+  border-radius: 8rpx;
+  transition: width 0.5s ease;
+}
+
+/* Bingo 格子 */
+.bingo-card {
+  padding: 30rpx;
+}
+
+.bingo-grid {
+  display: grid;
+  gap: 12rpx;
+}
+
+.bingo-cell {
+  aspect-ratio: 1;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.2s;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.bingo-cell:active {
+  transform: scale(0.95);
+}
+
+.bingo-cell.completed {
+  opacity: 0.7;
+}
+
+.cell-text {
+  font-size: 22rpx;
+  color: var(--text-primary);
+  text-align: center;
+  padding: 8rpx;
+  z-index: 1;
+  word-break: break-all;
+}
+
+.checkmark {
+  position: absolute;
+  top: 6rpx;
+  right: 6rpx;
+  width: 28rpx;
+  height: 28rpx;
+  background: var(--success-color);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.check-icon {
+  color: white;
+  font-size: 18rpx;
+  font-weight: bold;
+}
+
+/* 底部功能按钮 */
+.bottom-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24rpx;
+  padding: 24rpx 30rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.05);
+  z-index: 100;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 50rpx;
+  background: linear-gradient(135deg, #F5F5F5 0%, #EEEEEE 100%);
+  flex: 1;
+  min-width: 0;
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%);
+}
+
+.action-btn:active {
+  opacity: 0.8;
+  transform: scale(0.98);
+}
+
+.btn-icon {
+  font-size: 28rpx;
+}
+
+.btn-text {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.action-btn.primary .btn-text {
+  color: white;
+}
+
+/* 庆祝弹窗 */
+.celebration-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.celebration-content {
+  background: white;
+  border-radius: 32rpx;
+  padding: 80rpx 60rpx;
+  text-align: center;
+  animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.celebration-emoji {
+  font-size: 100rpx;
+  display: block;
+  margin-bottom: 30rpx;
+}
+
+.celebration-title {
+  display: block;
+  font-size: 48rpx;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-bottom: 20rpx;
+}
+
+.celebration-text {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+}

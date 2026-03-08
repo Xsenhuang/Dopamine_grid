@@ -1,0 +1,109 @@
+<!--pages/tasks/tasks.wxml-->
+<view class="container">
+  <!-- 添加新任务 -->
+  <view class="card add-task-card">
+    <text class="card-title">添加新任务</text>
+    <view class="input-section">
+      <input 
+        class="task-input" 
+        placeholder="输入任务名称..." 
+        value="{{newTaskName}}"
+        bindinput="onInputChange"
+        maxlength="10"
+      />
+      <view class="color-picker">
+        <view 
+          wx:for="{{colors}}" 
+          wx:key="*this"
+          class="color-option {{selectedColor === item ? 'selected' : ''}}"
+          style="background-color: {{item}}"
+          bindtap="selectColor"
+          data-color="{{item}}"
+        ></view>
+      </view>
+      <view class="btn btn-primary add-btn" bindtap="addTask">
+        <text>+ 添加</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 格子布局设置 -->
+  <view class="card grid-setting-card">
+    <text class="card-title">格子布局设置</text>
+    <view class="grid-options">
+      <view 
+        wx:for="{{gridOptions}}" 
+        wx:key="*this"
+        class="grid-option {{gridSize === item ? 'selected' : ''}}"
+        bindtap="selectGridSize"
+        data-size="{{item}}"
+      >
+        <text class="grid-text">{{item}}×{{item}}</text>
+      </view>
+    </view>
+    <text class="grid-hint">当前布局：{{gridSize}}×{{gridSize}}，最多{{gridSize * gridSize}}个任务</text>
+  </view>
+
+  <!-- 任务列表 -->
+  <view class="card task-list-card">
+    <view class="list-header">
+      <text class="card-title">任务列表</text>
+      <text class="task-count">{{tasks.length}}/{{gridSize * gridSize}}</text>
+    </view>
+    
+    <view class="task-list">
+      <view 
+        wx:for="{{tasks}}" 
+        wx:key="id"
+        class="task-item {{editingId === item.id ? 'editing' : ''}}"
+      >
+        <view class="task-info" bindtap="toggleComplete" data-id="{{item.id}}">
+          <view class="task-color" style="background-color: {{item.color}}"></view>
+          <text class="task-name {{item.completed ? 'completed' : ''}}">{{item.name}}</text>
+          <view wx:if="{{item.completed}}" class="status-badge">已完成</view>
+        </view>
+        
+        <view class="task-actions">
+          <view class="action-icon edit" bindtap="startEdit" data-id="{{item.id}}" data-name="{{item.name}}">
+            <text>✏️</text>
+          </view>
+          <view class="action-icon delete" bindtap="deleteTask" data-id="{{item.id}}">
+            <text>🗑️</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{tasks.length === 0}}" class="empty-state">
+      <text class="empty-icon">📝</text>
+      <text class="empty-text">还没有任务，添加一个吧！</text>
+    </view>
+  </view>
+
+  <!-- 编辑弹窗 -->
+  <view wx:if="{{showEditModal}}" class="modal-overlay" bindtap="cancelEdit">
+    <view class="modal-content" catchtap="preventBubble">
+      <text class="modal-title">编辑任务</text>
+      <input 
+        class="edit-input" 
+        value="{{editName}}"
+        bindinput="onEditInputChange"
+        maxlength="10"
+      />
+      <view class="color-picker">
+        <view 
+          wx:for="{{colors}}" 
+          wx:key="*this"
+          class="color-option {{editColor === item ? 'selected' : ''}}"
+          style="background-color: {{item}}"
+          bindtap="selectEditColor"
+          data-color="{{item}}"
+        ></view>
+      </view>
+      <view class="modal-actions">
+        <view class="btn btn-secondary" bindtap="cancelEdit">取消</view>
+        <view class="btn btn-primary" bindtap="saveEdit">保存</view>
+      </view>
+    </view>
+  </view>
+</view>
