@@ -1,5 +1,15 @@
 <!--pages/index/index.wxml-->
 <view class="container">
+  <!-- 顶部导航 -->
+  <view class="header">
+    <text class="header-title">多巴胺格子</text>
+    <view class="header-actions">
+      <view class="header-btn" bindtap="showCalendar">
+        <text class="header-btn-icon">📅</text>
+      </view>
+    </view>
+  </view>
+
   <!-- 进度卡片 -->
   <view class="card progress-card">
     <view class="progress-header">
@@ -20,11 +30,11 @@
     </view>
   </view>
 
-  <!-- Bingo 格子 -->
+  <!-- 多巴胺格子 -->
   <view class="card bingo-card">
     <view class="bingo-grid" style="grid-template-columns: repeat({{gridSize}}, 1fr);">
-      <view 
-        wx:for="{{tasks}}" 
+      <view
+        wx:for="{{tasks}}"
         wx:for-index="index"
         wx:key="id"
         class="bingo-cell {{item.completed ? 'completed' : ''}} {{item.animating ? 'pulse' : ''}}"
@@ -67,5 +77,143 @@
     <text class="celebration-emoji">🎉</text>
     <text class="celebration-title">太棒了！</text>
     <text class="celebration-text">你完成了今日所有任务！</text>
+  </view>
+</view>
+
+<!-- 烟花效果 -->
+<view wx:if="{{showFireworks}}" class="fireworks-overlay" bindtap="hideFireworks">
+  <view class="fireworks-container">
+    <view class="firework firework-1">
+      <view class="explosion">
+        <view class="spark spark-1"></view>
+        <view class="spark spark-2"></view>
+        <view class="spark spark-3"></view>
+        <view class="spark spark-4"></view>
+        <view class="spark spark-5"></view>
+        <view class="spark spark-6"></view>
+        <view class="spark spark-7"></view>
+        <view class="spark spark-8"></view>
+        <view class="spark spark-9"></view>
+        <view class="spark spark-10"></view>
+        <view class="spark spark-11"></view>
+        <view class="spark spark-12"></view>
+      </view>
+    </view>
+    <view class="firework firework-2">
+      <view class="explosion">
+        <view class="spark spark-1"></view>
+        <view class="spark spark-2"></view>
+        <view class="spark spark-3"></view>
+        <view class="spark spark-4"></view>
+        <view class="spark spark-5"></view>
+        <view class="spark spark-6"></view>
+        <view class="spark spark-7"></view>
+        <view class="spark spark-8"></view>
+        <view class="spark spark-9"></view>
+        <view class="spark spark-10"></view>
+        <view class="spark spark-11"></view>
+        <view class="spark spark-12"></view>
+      </view>
+    </view>
+    <view class="firework firework-3">
+      <view class="explosion">
+        <view class="spark spark-1"></view>
+        <view class="spark spark-2"></view>
+        <view class="spark spark-3"></view>
+        <view class="spark spark-4"></view>
+        <view class="spark spark-5"></view>
+        <view class="spark spark-6"></view>
+        <view class="spark spark-7"></view>
+        <view class="spark spark-8"></view>
+        <view class="spark spark-9"></view>
+        <view class="spark spark-10"></view>
+        <view class="spark spark-11"></view>
+        <view class="spark spark-12"></view>
+      </view>
+    </view>
+  </view>
+  <view class="bingo-text">🎯 多巴胺格子达成！</view>
+</view>
+
+<!-- 日历弹窗 -->
+<view wx:if="{{showCalendarModal}}" class="calendar-modal" bindtap="hideCalendar">
+  <view class="calendar-content" catchtap="preventHide">
+    <!-- 弹窗头部 -->
+    <view class="calendar-header">
+      <view class="calendar-title">
+        <text class="calendar-icon">📅</text>
+        <text>日历</text>
+      </view>
+      <view class="calendar-close" bindtap="hideCalendar">
+        <text>✕</text>
+      </view>
+    </view>
+    
+    <!-- 年月切换 -->
+    <view class="calendar-nav">
+      <view class="nav-btn" bindtap="prevMonth">
+        <text>‹</text>
+      </view>
+      <text class="calendar-month">{{calendarYear}}年 {{calendarMonth}}月</text>
+      <view class="nav-btn" bindtap="nextMonth">
+        <text>›</text>
+      </view>
+    </view>
+    
+    <!-- 提示文字 -->
+    <text class="calendar-tip">单击预览 · 双击跳转编辑</text>
+    
+    <!-- 星期标题 -->
+    <view class="calendar-weekdays">
+      <text wx:for="{{weekdays}}" wx:key="*this" class="weekday">{{item}}</text>
+    </view>
+    
+    <!-- 日期网格 -->
+    <view class="calendar-days">
+      <view
+        wx:for="{{calendarDays}}"
+        wx:key="fullDate"
+        class="calendar-day {{item.isCurrentMonth ? '' : 'other-month'}} {{item.isToday ? 'today' : ''}} {{item.isSelected ? 'selected' : ''}}"
+        bindtap="selectDate"
+        data-date="{{item.date}}"
+        data-fulldate="{{item.fullDate}}"
+      >
+        <text class="day-number">{{item.day}}</text>
+        <view wx:if="{{item.hasData}}" class="day-dot"></view>
+      </view>
+    </view>
+    
+    <!-- 选中日期详情 -->
+    <view class="calendar-detail">
+      <view class="detail-header">
+        <text class="detail-date">{{selectedDateText}}</text>
+        <text wx:if="{{selectedDateIsToday}}" class="detail-today">· 今天</text>
+      </view>
+      <view class="detail-stats">
+        <text class="detail-percent">完成 {{selectedDatePercent}}%</text>
+        <text class="detail-count">· 勾选 {{selectedDateCompleted}} 项</text>
+      </view>
+      
+      <!-- 任务列表 -->
+      <view class="detail-tasks">
+        <text class="detail-tasks-title">完成时间</text>
+        <view wx:if="{{selectedDateTasks.length === 0}}" class="detail-empty">
+          <text>暂无完成的任务</text>
+        </view>
+        <view wx:else class="detail-task-list">
+          <view wx:for="{{selectedDateTasks}}" wx:key="name" class="detail-task-item">
+            <text class="task-time">{{item.time}}</text>
+            <text class="task-name">{{item.name}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 返回今天按钮 -->
+    <view wx:if="{{!selectedDateIsToday}}" class="calendar-footer">
+      <view class="back-today-btn" bindtap="backToToday">
+        <text>返回今天 ↺</text>
+      </view>
+    </view>
   </view>
 </view>

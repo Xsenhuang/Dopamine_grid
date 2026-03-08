@@ -1,5 +1,5 @@
 // pages/index/index.js
-// 首页 - 显示Bingo格子、计算完成进度、提供操作按钮
+// 首页 - 显示多巴胺格子、计算完成进度、提供操作按钮
 
 Page({
   /**
@@ -18,12 +18,29 @@ Page({
     progressText: '完成一项继续加油 💪',
     // 是否显示庆祝弹窗
     showCelebration: false,
+    // 是否显示烟花效果
+    showFireworks: false,
     // 各线条（行、列、对角线）的完成进度
     lineProgress: {
       rows: [],    // 每行的完成进度
       cols: [],    // 每列的完成进度
       diagonals: [] // 两条对角线的完成进度
-    }
+    },
+    // 已完成的连线记录（用于避免重复触发烟花）
+    completedLines: [],
+    // 是否显示日历弹窗
+    showCalendarModal: false,
+    // 日历相关数据
+    calendarYear: 2026,
+    calendarMonth: 3,
+    weekdays: ['日', '一', '二', '三', '四', '五', '六'],
+    calendarDays: [],
+    selectedDate: '',
+    selectedDateText: '',
+    selectedDateIsToday: true,
+    selectedDatePercent: 0,
+    selectedDateCompleted: 0,
+    selectedDateTasks: []
   },
 
   /**
@@ -92,6 +109,7 @@ Page({
   /**
    * 计算总体完成进度
    * 基于已完成任务数占总任务数的百分比
+   * 同时检测多巴胺格子连线
    */
   calculateProgress() {
     const { tasks, gridSize } = this.data
@@ -117,7 +135,7 @@ Page({
     } else if (percent >= 50) {
       progressText = '已经完成一半了！✨'
     } else if (percent >= 25) {
-      progressText = '不错的开始！�'
+      progressText = '不错的开始！🌟'
     }
     
     // 更新页面数据
@@ -126,10 +144,121 @@ Page({
       progressText
     })
 
+    // 检测多巴胺格子连线
+    this.checkBingoLines(actualTasks, gridSize)
+
     // 如果完成度达到100%，显示庆祝动画
     if (percent >= 100 && actualTasks.length > 0) {
       this.showCelebration()
     }
+  },
+
+  /**
+   * 检测多巴胺格子连线
+   * 当完成横、竖、斜任意一条连线时触发烟花效果
+   */
+  checkBingoLines(tasks, size) {
+    const { completedLines } = this.data
+    const newCompletedLines = []
+    let hasNewLine = false
+
+    // 检测每一行
+    for (let i = 0; i < size; i++) {
+      let lineCompleted = true
+      for (let j = 0; j < size; j++) {
+        const index = i * size + j
+        if (index >= tasks.length || !tasks[index].completed) {
+          lineCompleted = false
+          break
+        }
+      }
+      if (lineCompleted) {
+        const lineId = `row-${i}`
+        newCompletedLines.push(lineId)
+        if (!completedLines.includes(lineId)) {
+          hasNewLine = true
+        }
+      }
+    }
+
+    // 检测每一列
+    for (let j = 0; j < size; j++) {
+      let lineCompleted = true
+      for (let i = 0; i < size; i++) {
+        const index = i * size + j
+        if (index >= tasks.length || !tasks[index].completed) {
+          lineCompleted = false
+          break
+        }
+      }
+      if (lineCompleted) {
+        const lineId = `col-${j}`
+        newCompletedLines.push(lineId)
+        if (!completedLines.includes(lineId)) {
+          hasNewLine = true
+        }
+      }
+    }
+
+    // 检测主对角线（左上到右下）
+    let diag1Completed = true
+    for (let i = 0; i < size; i++) {
+      const index = i * size + i
+      if (index >= tasks.length || !tasks[index].completed) {
+        diag1Completed = false
+        break
+      }
+    }
+    if (diag1Completed) {
+      const lineId = 'diag-1'
+      newCompletedLines.push(lineId)
+      if (!completedLines.includes(lineId)) {
+        hasNewLine = true
+      }
+    }
+
+    // 检测副对角线（右上到左下）
+    let diag2Completed = true
+    for (let i = 0; i < size; i++) {
+      const index = i * size + (size - 1 - i)
+      if (index >= tasks.length || !tasks[index].completed) {
+        diag2Completed = false
+        break
+      }
+    }
+    if (diag2Completed) {
+      const lineId = 'diag-2'
+      newCompletedLines.push(lineId)
+      if (!completedLines.includes(lineId)) {
+        hasNewLine = true
+      }
+    }
+
+    // 更新已完成的连线记录
+    this.setData({ completedLines: newCompletedLines })
+
+    // 如果有新的连线完成，显示烟花效果
+    if (hasNewLine) {
+      this.showFireworks()
+    }
+  },
+
+  /**
+   * 显示烟花效果
+   */
+  showFireworks() {
+    this.setData({ showFireworks: true })
+    // 2秒后自动关闭
+    setTimeout(() => {
+      this.setData({ showFireworks: false })
+    }, 2000)
+  },
+
+  /**
+   * 隐藏烟花效果
+   */
+  hideFireworks() {
+    this.setData({ showFireworks: false })
   },
 
   /**
@@ -255,6 +384,8 @@ Page({
     this.setData({ tasks }, () => {
       // 数据更新完成后重新计算进度
       this.calculateProgress()
+      // 保存今日进度到日历，传递更新后的任务列表
+      this.saveDailyProgress(tasks)
     })
     
     // 300毫秒后移除动画标记
@@ -274,29 +405,21 @@ Page({
    * 使用Fisher-Yates洗牌算法
    */
   randomizeTasks() {
-    wx.showModal({
-      title: '随机排序',
-      content: '确定要重新随机排列任务吗？',
-      success: (res) => {
-        if (res.confirm) {
-          const tasks = [...this.data.tasks]
-          // Fisher-Yates洗牌算法
-          for (let i = tasks.length - 1; i > 0; i--) {
-            // 随机选择一个位置（0到i之间）
-            const j = Math.floor(Math.random() * (i + 1));
-            // 交换位置i和位置j的元素
-            [tasks[i], tasks[j]] = [tasks[j], tasks[i]]
-          }
-          
-          this.setData({ tasks })
-          wx.setStorageSync('adhd_tasks', tasks)
-          
-          wx.showToast({
-            title: '已随机排序',
-            icon: 'success'
-          })
-        }
-      }
+    const tasks = [...this.data.tasks]
+    // Fisher-Yates洗牌算法
+    for (let i = tasks.length - 1; i > 0; i--) {
+      // 随机选择一个位置（0到i之间）
+      const j = Math.floor(Math.random() * (i + 1));
+      // 交换位置i和位置j的元素
+      [tasks[i], tasks[j]] = [tasks[j], tasks[i]]
+    }
+    
+    this.setData({ tasks })
+    wx.setStorageSync('adhd_tasks', tasks)
+    
+    wx.showToast({
+      title: '已随机排序',
+      icon: 'success'
     })
   },
 
@@ -304,28 +427,19 @@ Page({
    * 重置所有任务的完成状态
    */
   resetAll() {
-    wx.showModal({
-      title: '重置进度',
-      content: '确定要重置今日所有完成状态吗？',
-      confirmColor: '#F44336',
-      success: (res) => {
-        if (res.confirm) {
-          // 将所有任务的completed设为false
-          const tasks = this.data.tasks.map(task => ({
-            ...task,
-            completed: false
-          }))
-          
-          this.setData({ tasks })
-          wx.setStorageSync('adhd_tasks', tasks)
-          this.calculateProgress()
-          
-          wx.showToast({
-            title: '已重置',
-            icon: 'success'
-          })
-        }
-      }
+    // 将所有任务的completed设为false
+    const tasks = this.data.tasks.map(task => ({
+      ...task,
+      completed: false
+    }))
+    
+    this.setData({ tasks })
+    wx.setStorageSync('adhd_tasks', tasks)
+    this.calculateProgress()
+    
+    wx.showToast({
+      title: '已重置',
+      icon: 'success'
     })
   },
 
@@ -402,5 +516,261 @@ Page({
     wx.navigateTo({
       url: '/pages/tasks/tasks'
     })
+  },
+
+  // ========== 日历功能 ==========
+
+  /**
+   * 显示日历弹窗
+   */
+  showCalendar() {
+    const now = new Date()
+    this.setData({
+      showCalendarModal: true,
+      calendarYear: now.getFullYear(),
+      calendarMonth: now.getMonth() + 1
+    }, () => {
+      this.generateCalendarDays()
+      this.selectToday()
+    })
+  },
+
+  /**
+   * 隐藏日历弹窗
+   */
+  hideCalendar() {
+    this.setData({ showCalendarModal: false })
+  },
+
+  /**
+   * 阻止事件冒泡
+   */
+  preventHide() {
+    // 什么都不做，只是阻止事件冒泡
+  },
+
+  /**
+   * 生成日历天数
+   */
+  generateCalendarDays() {
+    const { calendarYear, calendarMonth } = this.data
+    const days = []
+    const firstDay = new Date(calendarYear, calendarMonth - 1, 1)
+    const lastDay = new Date(calendarYear, calendarMonth, 0)
+    const prevLastDay = new Date(calendarYear, calendarMonth - 1, 0)
+
+    const firstDayWeek = firstDay.getDay()
+    const totalDays = lastDay.getDate()
+    const prevTotalDays = prevLastDay.getDate()
+
+    // 上个月的日期
+    for (let i = firstDayWeek - 1; i >= 0; i--) {
+      const day = prevTotalDays - i
+      const date = new Date(calendarYear, calendarMonth - 2, day)
+      days.push(this.createDayObject(date, false))
+    }
+
+    // 当前月的日期
+    for (let i = 1; i <= totalDays; i++) {
+      const date = new Date(calendarYear, calendarMonth - 1, i)
+      days.push(this.createDayObject(date, true))
+    }
+
+    // 下个月的日期（补满42个格子，6行7列）
+    const remaining = 42 - days.length
+    for (let i = 1; i <= remaining; i++) {
+      const date = new Date(calendarYear, calendarMonth, i)
+      days.push(this.createDayObject(date, false))
+    }
+
+    this.setData({ calendarDays: days })
+  },
+
+  /**
+   * 创建日期对象
+   */
+  createDayObject(date, isCurrentMonth) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const fullDate = `${year}-${month}-${day}`
+
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+    // 从本地存储获取该日期的完成数据
+    const dailyData = wx.getStorageSync(`daily_${fullDate}`) || { completed: 0, total: 0, tasks: [] }
+
+    return {
+      day: date.getDate(),
+      fullDate: fullDate,
+      isCurrentMonth: isCurrentMonth,
+      isToday: fullDate === today,
+      isSelected: false,
+      hasData: dailyData.completed > 0,
+      completed: dailyData.completed,
+      total: dailyData.total
+    }
+  },
+
+  /**
+   * 选择今天
+   */
+  selectToday() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const today = `${year}-${month}-${day}`
+
+    this.selectDateByFullDate(today, true)
+  },
+
+  /**
+   * 选择日期
+   */
+  selectDate(e) {
+    const fullDate = e.currentTarget.dataset.fulldate
+    this.selectDateByFullDate(fullDate, false)
+  },
+
+  /**
+   * 根据完整日期选择
+   */
+  selectDateByFullDate(fullDate, isToday) {
+    const { calendarDays, gridSize } = this.data
+    const totalCells = gridSize * gridSize
+
+    // 更新选中状态
+    const updatedDays = calendarDays.map(day => ({
+      ...day,
+      isSelected: day.fullDate === fullDate
+    }))
+
+    // 获取该日期的数据
+    const storageKey = `daily_${fullDate}`
+    const dailyData = wx.getStorageSync(storageKey) || { completed: 0, total: totalCells, tasks: [] }
+    
+    console.log('selectDateByFullDate:', {
+      fullDate,
+      storageKey,
+      dailyData
+    })
+
+    // 格式化日期显示
+    const date = new Date(fullDate)
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    const weekDay = weekDays[date.getDay()]
+
+    this.setData({
+      calendarDays: updatedDays,
+      selectedDate: fullDate,
+      selectedDateText: `${month}月${day}日 ${weekDay}`,
+      selectedDateIsToday: isToday,
+      selectedDatePercent: dailyData.total > 0 ? Math.round((dailyData.completed / dailyData.total) * 100) : 0,
+      selectedDateCompleted: dailyData.completed,
+      selectedDateTasks: dailyData.tasks || []
+    })
+  },
+
+  /**
+   * 上一个月
+   */
+  prevMonth() {
+    const { calendarYear, calendarMonth } = this.data
+    let year = calendarYear
+    let month = calendarMonth - 1
+
+    if (month < 1) {
+      month = 12
+      year--
+    }
+
+    this.setData({
+      calendarYear: year,
+      calendarMonth: month
+    }, () => {
+      this.generateCalendarDays()
+    })
+  },
+
+  /**
+   * 下一个月
+   */
+  nextMonth() {
+    const { calendarYear, calendarMonth } = this.data
+    let year = calendarYear
+    let month = calendarMonth + 1
+
+    if (month > 12) {
+      month = 1
+      year++
+    }
+
+    this.setData({
+      calendarYear: year,
+      calendarMonth: month
+    }, () => {
+      this.generateCalendarDays()
+    })
+  },
+
+  /**
+   * 返回今天
+   */
+  backToToday() {
+    const now = new Date()
+    this.setData({
+      calendarYear: now.getFullYear(),
+      calendarMonth: now.getMonth() + 1
+    }, () => {
+      this.generateCalendarDays()
+      this.selectToday()
+    })
+  },
+
+  /**
+   * 保存今日完成数据
+   * 在任务完成时调用
+   * @param {Array} taskList - 任务列表，如果不传则使用当前数据
+   */
+  saveDailyProgress(taskList) {
+    const { gridSize } = this.data
+    const tasks = taskList || this.data.tasks
+    const totalCells = gridSize * gridSize
+    const actualTasks = tasks.slice(0, totalCells)
+
+    const completedTasks = actualTasks.filter(t => t.completed)
+    
+    // 调试日志
+    console.log('saveDailyProgress:', {
+      gridSize,
+      totalCells,
+      tasksCount: tasks.length,
+      actualTasksCount: actualTasks.length,
+      completedTasksCount: completedTasks.length,
+      completedTasks: completedTasks.map(t => t.name)
+    })
+    
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const today = `${year}-${month}-${day}`
+
+    const dailyData = {
+      completed: completedTasks.length,
+      total: totalCells,
+      tasks: completedTasks.map(t => ({
+        name: t.name,
+        time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+      }))
+    }
+
+    wx.setStorageSync(`daily_${today}`, dailyData)
+    
+    console.log('保存到 storage:', `daily_${today}`, dailyData)
   }
 })
