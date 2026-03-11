@@ -47,7 +47,7 @@
     }
   },
   "compileType": "miniprogram",
-  "libVersion": "2.19.4",
+  "libVersion": "3.14.3",
   "appid": "wx823bc31afb4925c7",
   "projectname": "ADHD-Bingo",
   "condition": {},

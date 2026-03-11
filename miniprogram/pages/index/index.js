@@ -444,53 +444,6 @@ Page({
   },
 
   /**
-   * 显示奖励弹窗
-   * 展示完成情况和鼓励信息
-   */
-  showReward() {
-    const { lineProgress, gridSize } = this.data
-    // 统计已完成任务数
-    const completedCount = this.data.tasks.filter(t => t.completed).length
-    
-    // 统计已完成的线条数量
-    let completedLines = 0
-    lineProgress.rows.forEach(row => {
-      if (row.percent === 100) completedLines++
-    })
-    lineProgress.cols.forEach(col => {
-      if (col.percent === 100) completedLines++
-    })
-    lineProgress.diagonals.forEach(diag => {
-      if (diag.percent === 100) completedLines++
-    })
-    
-    // 鼓励文案列表
-    const messages = [
-      '继续加油！每一个小步骤都是进步 🌟',
-      '你正在变得更好！保持这个节奏 💪',
-      'ADHD不是你的缺陷，是你的超能力 ✨',
-      '完成比完美更重要！🎯',
-      '今天也是充满活力的一天！🌈'
-    ]
-    
-    // 根据完成情况选择文案
-    let message = completedCount === 0 
-      ? '开始你的第一个任务吧！🚀'
-      : messages[Math.floor(Math.random() * messages.length)]
-    
-    // 显示完成的线条数量
-    if (completedLines > 0) {
-      message += `\n\n已完成 ${completedLines} 条线！`
-    }
-    
-    wx.showModal({
-      title: `已完成 ${completedCount}/${gridSize * gridSize} 项`,
-      content: message,
-      showCancel: false
-    })
-  },
-
-  /**
    * 显示庆祝弹窗
    * 当完成度达到100%时触发
    */

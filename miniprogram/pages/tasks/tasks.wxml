@@ -1,109 +1,133 @@
 <!--pages/tasks/tasks.wxml-->
 <view class="container">
-  <!-- 添加新任务 -->
-  <view class="card add-task-card">
-    <text class="card-title">添加新任务</text>
-    <view class="input-section">
-      <input 
-        class="task-input" 
-        placeholder="输入任务名称..." 
-        value="{{newTaskName}}"
-        bindinput="onInputChange"
-        maxlength="10"
-      />
-      <view class="color-picker">
-        <view 
-          wx:for="{{colors}}" 
-          wx:key="*this"
-          class="color-option {{selectedColor === item ? 'selected' : ''}}"
-          style="background-color: {{item}}"
-          bindtap="selectColor"
-          data-color="{{item}}"
-        ></view>
-      </view>
-      <view class="btn btn-primary add-btn" bindtap="addTask">
-        <text>+ 添加</text>
-      </view>
-    </view>
-  </view>
-
-  <!-- 格子布局设置 -->
-  <view class="card grid-setting-card">
-    <text class="card-title">格子布局设置</text>
-    <view class="grid-options">
+  <!-- 布局分配 -->
+  <view class="card layout-card">
+    <text class="card-title">布局分配</text>
+    <view class="layout-options">
       <view 
         wx:for="{{gridOptions}}" 
         wx:key="*this"
-        class="grid-option {{gridSize === item ? 'selected' : ''}}"
+        class="layout-option {{gridSize === item ? 'selected' : ''}}"
         bindtap="selectGridSize"
         data-size="{{item}}"
       >
-        <text class="grid-text">{{item}}×{{item}}</text>
+        <text>{{item}}×{{item}}</text>
       </view>
-    </view>
-    <text class="grid-hint">当前布局：{{gridSize}}×{{gridSize}}，最多{{gridSize * gridSize}}个任务</text>
-  </view>
-
-  <!-- 任务列表 -->
-  <view class="card task-list-card">
-    <view class="list-header">
-      <text class="card-title">任务列表</text>
-      <text class="task-count">{{tasks.length}}/{{gridSize * gridSize}}</text>
-    </view>
-    
-    <view class="task-list">
-      <view 
-        wx:for="{{tasks}}" 
-        wx:key="id"
-        class="task-item {{editingId === item.id ? 'editing' : ''}}"
-      >
-        <view class="task-info" bindtap="toggleComplete" data-id="{{item.id}}">
-          <view class="task-color" style="background-color: {{item.color}}"></view>
-          <text class="task-name {{item.completed ? 'completed' : ''}}">{{item.name}}</text>
-          <view wx:if="{{item.completed}}" class="status-badge">已完成</view>
-        </view>
-        
-        <view class="task-actions">
-          <view class="action-icon edit" bindtap="startEdit" data-id="{{item.id}}" data-name="{{item.name}}">
-            <text>✏️</text>
-          </view>
-          <view class="action-icon delete" bindtap="deleteTask" data-id="{{item.id}}">
-            <text>🗑️</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view wx:if="{{tasks.length === 0}}" class="empty-state">
-      <text class="empty-icon">📝</text>
-      <text class="empty-text">还没有任务，添加一个吧！</text>
     </view>
   </view>
 
-  <!-- 编辑弹窗 -->
-  <view wx:if="{{showEditModal}}" class="modal-overlay" bindtap="cancelEdit">
-    <view class="modal-content" catchtap="preventBubble">
-      <text class="modal-title">编辑任务</text>
-      <input 
-        class="edit-input" 
-        value="{{editName}}"
-        bindinput="onEditInputChange"
-        maxlength="10"
-      />
-      <view class="color-picker">
+  <!-- 已选数量提示 -->
+  <view class="selected-hint">
+    <text>已选 {{selectedTaskIds.length}} 个（Bingo 使用前 {{gridSize * gridSize}} 个）</text>
+  </view>
+
+  <!-- 任务分组列表 -->
+  <view class="task-groups">
+    <!-- 默认分组 -->
+    <view class="task-group">
+      <view class="group-header">
+        <view class="group-title">
+          <text>默认分组</text>
+        </view>
+        <view class="group-select-all {{defaultGroupAllSelected ? 'selected' : ''}}" catchtap="selectAllInGroup" data-group="default">
+          <text>{{defaultGroupAllSelected ? '取消' : '全选'}}</text>
+        </view>
+      </view>
+      <view class="group-tasks">
         <view 
-          wx:for="{{colors}}" 
-          wx:key="*this"
-          class="color-option {{editColor === item ? 'selected' : ''}}"
-          style="background-color: {{item}}"
-          bindtap="selectEditColor"
-          data-color="{{item}}"
-        ></view>
+          wx:for="{{defaultTasks}}" 
+          wx:for-index="idx"
+          wx:key="id"
+          class="task-tag {{selectedTaskIds.indexOf(item.id) !== -1 ? 'selected' : ''}}"
+          style="{{selectedTaskIds.indexOf(item.id) !== -1 ? 'background-color: ' + (item.color || '#64B5F6') + '; border-color: ' + (item.color || '#64B5F6') + ';' : ''}}"
+          bindtap="toggleTaskSelection"
+          data-id="{{item.id}}"
+        >
+          <text>{{item.name}}</text>
+        </view>
       </view>
-      <view class="modal-actions">
-        <view class="btn btn-secondary" bindtap="cancelEdit">取消</view>
-        <view class="btn btn-primary" bindtap="saveEdit">保存</view>
+      <!-- 添加任务输入区 -->
+      <view class="add-task-section">
+        <input 
+          class="task-input" 
+          placeholder="添加任务…" 
+          value="{{newTaskName}}"
+          bindinput="onInputChange"
+          maxlength="20"
+        />
+        <view class="add-btn" bindtap="addTask">
+          <text>+</text>
+        </view>
       </view>
     </view>
+
+    <!-- 其他分组 -->
+    <view wx:for="{{groupedTasks}}" wx:key="groupId" wx:for-item="group" wx:if="{{group.groupId !== 'default'}}" class="task-group">
+      <view class="group-header">
+        <view class="group-title">
+          <text>{{group.groupName}}</text>
+        </view>
+        <view class="group-actions">
+          <view class="group-action-btn edit" catchtap="editGroup" data-group-id="{{group.groupId}}" data-group-name="{{group.groupName}}">
+            <text>编辑</text>
+          </view>
+          <view class="group-action-btn delete" catchtap="deleteGroup" data-group-id="{{group.groupId}}">
+            <text>删除</text>
+          </view>
+          <view class="group-select-all {{groupAllSelected[group.groupId] ? 'selected' : ''}}" catchtap="selectAllInGroup" data-group="{{group.groupId}}">
+            <text>{{groupAllSelected[group.groupId] ? '取消' : '全选'}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="group-tasks">
+        <view 
+          wx:for="{{group.tasks}}" 
+          wx:for-item="task"
+          wx:for-index="taskIdx"
+          wx:key="id"
+          class="task-tag {{selectedTaskIds.indexOf(task.id) !== -1 ? 'selected' : ''}}"
+          style="{{selectedTaskIds.indexOf(task.id) !== -1 ? 'background-color: ' + (task.color || '#64B5F6') + '; border-color: ' + (task.color || '#64B5F6') + ';' : ''}}"
+          bindtap="toggleTaskSelection"
+          data-id="{{task.id}}"
+        >
+          <text>{{task.name}}</text>
+        </view>
+      </view>
+      <!-- 添加任务输入区 -->
+      <view class="add-task-section">
+        <input 
+          class="task-input" 
+          placeholder="添加任务…" 
+          value="{{newTaskNames[group.groupId] || ''}}"
+          bindinput="onGroupInputChange"
+          data-group-id="{{group.groupId}}"
+          maxlength="20"
+        />
+        <view class="add-btn" bindtap="addTaskToGroup" data-group-id="{{group.groupId}}" data-group-name="{{group.groupName}}">
+          <text>+</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 新建分组按钮 -->
+  <view class="new-group-btn" bindtap="createNewGroup">
+    <text>+ 新建分组</text>
+  </view>
+
+  <!-- 底部占位，为底部按钮留出空间 -->
+  <view class="bottom-spacer"></view>
+</view>
+
+<!-- 底部操作按钮区 -->
+<view class="action-bar">
+  <view class="action-btn {{selectedTaskIds.length === tasks.length && tasks.length > 0 ? 'active' : ''}}" bindtap="selectAll">
+    <text>全选</text>
+  </view>
+  <view class="action-btn primary" bindtap="applySelection">
+    <text>应用 ✓</text>
+  </view>
+  <view class="action-btn random" bindtap="randomSelect">
+    <text>🎲 随机</text>
   </view>
 </view>

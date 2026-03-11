@@ -64,10 +64,6 @@
       <text class="btn-icon">↺</text>
       <text class="btn-text">重置</text>
     </view>
-    <view class="action-btn" bindtap="showReward">
-      <text class="btn-icon">🏆</text>
-      <text class="btn-text">奖励</text>
-    </view>
   </view>
 </view>
 

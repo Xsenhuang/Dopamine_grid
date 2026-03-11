@@ -120,11 +120,14 @@
 /* 多巴胺格子 */
 .bingo-card {
   padding: 30rpx;
+  min-height: calc(100vw - 60rpx);
 }
 
 .bingo-grid {
   display: grid;
   gap: 12rpx;
+  height: 100%;
+  align-content: start;
 }
 
 .bingo-cell {
