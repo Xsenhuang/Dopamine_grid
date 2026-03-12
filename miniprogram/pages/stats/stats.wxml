@@ -1,13 +1,22 @@
 <!--pages/stats/stats.wxml-->
 <view class="container">
-  <view class="header">
-    <text class="page-title">统计</text>
-    <text class="page-subtitle">查看你的完成记录</text>
+  <!-- 日期选择器 -->
+  <view class="date-selector">
+    <view class="date-nav" bindtap="onPrevDate">
+      <text class="nav-arrow">‹</text>
+    </view>
+    <view class="date-display" bindtap="onSelectDate">
+      <text class="date-text">{{currentDateText}}</text>
+      <text class="date-icon">📅</text>
+    </view>
+    <view class="date-nav {{isToday ? 'disabled' : ''}}" bindtap="onNextDate">
+      <text class="nav-arrow">›</text>
+    </view>
   </view>
 
   <!-- 今日概览 -->
   <view class="card overview-card">
-    <text class="card-title">今日概览</text>
+    <text class="card-title">{{isToday ? '今日概览' : '当日概览'}}</text>
     <view class="overview-grid">
       <view class="overview-item">
         <text class="overview-value">{{todayStats.total}}</text>
@@ -58,6 +67,7 @@
           <view class="dist-bar-bg">
             <view class="dist-bar-fill" style="width: {{item.percentage}}%; background-color: {{item.color}}"></view>
           </view>
+          <text class="dist-tasks" wx:if="{{item.taskNamesText}}">{{item.taskNamesText}}</text>
         </view>
         <text class="dist-count">{{item.count}}个</text>
       </view>
@@ -80,5 +90,53 @@
   <view class="card quote-card">
     <text class="quote-icon">💬</text>
     <text class="quote-text">{{dailyQuote}}</text>
+  </view>
+
+  <!-- 日历弹窗 -->
+  <view class="calendar-modal {{showCalendarModal ? 'show' : ''}}" bindtap="onCloseCalendar">
+    <view class="calendar-content" catchtap="onCalendarContentTap">
+      <view class="calendar-header">
+        <view class="calendar-title">选择日期</view>
+        <view class="calendar-close" bindtap="onCloseCalendar">✕</view>
+      </view>
+      
+      <view class="calendar-nav">
+        <view class="calendar-nav-btn" bindtap="onPrevMonth">‹</view>
+        <view class="calendar-month">{{calendarYear}}年{{calendarMonth}}月</view>
+        <view class="calendar-nav-btn" bindtap="onNextMonth">›</view>
+      </view>
+      
+      <view class="calendar-weekdays">
+        <view wx:for="{{weekdays}}" wx:key="*this" class="weekday">{{item}}</view>
+      </view>
+      
+      <view class="calendar-days">
+        <view 
+          wx:for="{{calendarDays}}" 
+          wx:key="fullDate"
+          class="calendar-day {{item.isCurrentMonth ? '' : 'other-month'}} {{item.isToday ? 'today' : ''}} {{item.isSelected ? 'selected' : ''}}"
+          bindtap="onDaySelect"
+          data-date="{{item.fullDate}}"
+          data-istoday="{{item.isToday}}"
+        >
+          <text class="day-number">{{item.day}}</text>
+          <view wx:if="{{item.hasData}}" class="day-dot" style="background: {{item.dotColor}}"></view>
+        </view>
+      </view>
+      
+      <view class="calendar-footer">
+        <view class="calendar-legend">
+          <view class="legend-item">
+            <view class="legend-dot" style="background: #4CAF50"></view>
+            <text>有记录</text>
+          </view>
+          <view class="legend-item">
+            <view class="legend-dot today-dot"></view>
+            <text>今天</text>
+          </view>
+        </view>
+        <view class="calendar-today-btn" bindtap="onSelectToday">回到今天</view>
+      </view>
+    </view>
   </view>
 </view>

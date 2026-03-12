@@ -4,8 +4,9 @@
   <view class="header">
     <text class="header-title">多巴胺格子</text>
     <view class="header-actions">
-      <view class="header-btn" bindtap="showCalendar">
-        <text class="header-btn-icon">📅</text>
+      <view class="header-date-selector" bindtap="showCalendar">
+        <text class="header-date-text">{{currentDateDisplay}}</text>
+        <text class="header-date-arrow">▼</text>
       </view>
     </view>
   </view>
@@ -19,7 +20,7 @@
       </view>
       <view class="progress-circle">
         <view class="circle-bg">
-          <text class="percentage">{{progressPercent}}%</text>
+          <text class="percentage">{{completedCount}}/{{totalCount}}</text>
         </view>
       </view>
     </view>
@@ -37,15 +38,20 @@
         wx:for="{{tasks}}"
         wx:for-index="index"
         wx:key="id"
-        class="bingo-cell {{item.completed ? 'completed' : ''}} {{item.animating ? 'pulse' : ''}}"
+        class="bingo-cell {{item.completed ? 'completed' : ''}} {{item.animating ? 'pulse' : ''}} {{item.dragging ? 'dragging' : ''}} {{selectedTaskId === item.id ? 'selected' : ''}} {{item.showConfetti ? 'has-confetti' : ''}}"
         style="background-color: {{item.color}}; display: {{index < gridSize * gridSize ? 'flex' : 'none'}};"
         bindtap="toggleTask"
         data-id="{{item.id}}"
+        bindlongpress="startDrag"
+        data-index="{{index}}"
+        bindtouchmove="onDragMove"
+        bindtouchend="onDragEnd"
       >
-        <text class="cell-text">{{item.name}}</text>
-        <view wx:if="{{item.completed}}" class="checkmark checkmark-animate">
-          <view class="check-icon">✓</view>
+        <!-- 格子完成时的彩纸效果 -->
+        <view wx:if="{{item.showConfetti}}" class="cell-confetti-container">
+          <view wx:for="{{item.cellConfetti}}" wx:for-item="confetti" wx:key="id" class="cell-confetti {{confetti.shape}} {{confetti.color}} dir-{{confetti.direction}}" style="{{confetti.direction === 'top' || confetti.direction === 'bottom' ? 'left: ' + confetti.position + '%;' : 'top: ' + confetti.position + '%;'}} animation-delay: {{confetti.delay}}s; animation-duration: {{confetti.duration}}s; transform: rotate({{confetti.rotation}}deg);"></view>
         </view>
+        <text class="cell-text" style="color: {{item.completed || selectedTaskId === item.id ? 'white' : (item.textColor || '#666666')}};">{{item.name}}</text>
       </view>
     </view>
   </view>
@@ -76,59 +82,25 @@
   </view>
 </view>
 
-<!-- 烟花效果 -->
-<view wx:if="{{showFireworks}}" class="fireworks-overlay" bindtap="hideFireworks">
-  <view class="fireworks-container">
-    <view class="firework firework-1">
-      <view class="explosion">
-        <view class="spark spark-1"></view>
-        <view class="spark spark-2"></view>
-        <view class="spark spark-3"></view>
-        <view class="spark spark-4"></view>
-        <view class="spark spark-5"></view>
-        <view class="spark spark-6"></view>
-        <view class="spark spark-7"></view>
-        <view class="spark spark-8"></view>
-        <view class="spark spark-9"></view>
-        <view class="spark spark-10"></view>
-        <view class="spark spark-11"></view>
-        <view class="spark spark-12"></view>
-      </view>
+<!-- BINGO 连线弹窗 -->
+<view wx:if="{{showBingoModal}}" class="bingo-modal-overlay" bindtap="hideBingoModal">
+  <!-- 彩纸烟花效果 -->
+  <view class="confetti-container">
+    <view wx:for="{{confettiPieces}}" wx:key="id" class="confetti {{item.shape}} {{item.color}}" style="left: {{item.left}}%; animation-delay: {{item.delay}}s; animation-duration: {{item.duration}}s; transform: rotate({{item.rotation}}deg);"></view>
+  </view>
+  <view class="bingo-modal-content" catchtap="preventHide">
+    <view class="bingo-modal-icon">👑</view>
+    <view class="bingo-modal-title">BINGO! ! !</view>
+    <view class="bingo-modal-tag">
+      <text class="tag-icon">🎯</text>
+      <text class="tag-text">连成 {{bingoLineCount}} 条线!</text>
     </view>
-    <view class="firework firework-2">
-      <view class="explosion">
-        <view class="spark spark-1"></view>
-        <view class="spark spark-2"></view>
-        <view class="spark spark-3"></view>
-        <view class="spark spark-4"></view>
-        <view class="spark spark-5"></view>
-        <view class="spark spark-6"></view>
-        <view class="spark spark-7"></view>
-        <view class="spark spark-8"></view>
-        <view class="spark spark-9"></view>
-        <view class="spark spark-10"></view>
-        <view class="spark spark-11"></view>
-        <view class="spark spark-12"></view>
-      </view>
-    </view>
-    <view class="firework firework-3">
-      <view class="explosion">
-        <view class="spark spark-1"></view>
-        <view class="spark spark-2"></view>
-        <view class="spark spark-3"></view>
-        <view class="spark spark-4"></view>
-        <view class="spark spark-5"></view>
-        <view class="spark spark-6"></view>
-        <view class="spark spark-7"></view>
-        <view class="spark spark-8"></view>
-        <view class="spark spark-9"></view>
-        <view class="spark spark-10"></view>
-        <view class="spark spark-11"></view>
-        <view class="spark spark-12"></view>
-      </view>
+    <view class="bingo-modal-subtitle">多巴胺大爆发! ! 🔥</view>
+    <view class="bingo-modal-btn" bindtap="hideBingoModal">
+      <text class="btn-text">太棒了，继续!</text>
+      <text class="btn-icon">🚀</text>
     </view>
   </view>
-  <view class="bingo-text">🎯 多巴胺格子达成！</view>
 </view>
 
 <!-- 日历弹窗 -->
@@ -137,7 +109,6 @@
     <!-- 弹窗头部 -->
     <view class="calendar-header">
       <view class="calendar-title">
-        <text class="calendar-icon">📅</text>
         <text>日历</text>
       </view>
       <view class="calendar-close" bindtap="hideCalendar">
@@ -156,8 +127,7 @@
       </view>
     </view>
     
-    <!-- 提示文字 -->
-    <text class="calendar-tip">单击预览 · 双击跳转编辑</text>
+
     
     <!-- 星期标题 -->
     <view class="calendar-weekdays">
@@ -205,10 +175,10 @@
       </view>
     </view>
     
-    <!-- 返回今天按钮 -->
-    <view wx:if="{{!selectedDateIsToday}}" class="calendar-footer">
-      <view class="back-today-btn" bindtap="backToToday">
-        <text>返回今天 ↺</text>
+    <!-- 编辑按钮 - 对所有日期都显示 -->
+    <view class="calendar-footer">
+      <view class="back-today-btn" bindtap="goToEditToday">
+        <text>编辑该日期 ✎</text>
       </view>
     </view>
   </view>

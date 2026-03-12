@@ -12,14 +12,22 @@ Page({
     gridSize: 5,
     // 当前日期字符串
     currentDate: '',
+    // 当前日期显示（年月日格式）
+    currentDateDisplay: '',
     // 总体完成进度百分比
     progressPercent: 0,
+    // 已完成任务数
+    completedCount: 0,
+    // 总任务数
+    totalCount: 0,
     // 进度提示文案
     progressText: '完成一项继续加油 💪',
     // 是否显示庆祝弹窗
     showCelebration: false,
-    // 是否显示烟花效果
-    showFireworks: false,
+    // 是否显示 BINGO 弹窗
+    showBingoModal: false,
+    // BINGO 连线条数
+    bingoLineCount: 0,
     // 各线条（行、列、对角线）的完成进度
     lineProgress: {
       rows: [],    // 每行的完成进度
@@ -28,8 +36,16 @@ Page({
     },
     // 已完成的连线记录（用于避免重复触发烟花）
     completedLines: [],
+    // 彩纸烟花数据
+    confettiPieces: [],
     // 是否显示日历弹窗
     showCalendarModal: false,
+    // 当前选中的任务ID
+    selectedTaskId: null,
+    // 拖拽相关
+    draggingTaskId: null,
+    draggingIndex: null,
+    isDragging: false,
     // 日历相关数据
     calendarYear: 2026,
     calendarMonth: 3,
@@ -63,8 +79,74 @@ Page({
   onShow() {
     // 重新加载布局设置（可能在任务页面修改了）
     this.loadGridSize()
-    // 重新加载任务列表
-    this.loadTasks()
+    // 加载当前选中日期的任务（可能是今天或其他日期）
+    this.loadTasksForCurrentDate()
+  },
+
+  /**
+   * 获取当前选中日期的存储键
+   */
+  getCurrentDateKey() {
+    const { selectedDate } = this.data
+    if (selectedDate) {
+      return `tasks_${selectedDate}`
+    }
+    // 默认为今天
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `tasks_${year}-${month}-${day}`
+  },
+
+  /**
+   * 加载当前选中日期的任务
+   */
+  loadTasksForCurrentDate() {
+    const dateKey = this.getCurrentDateKey()
+    const dateStr = dateKey.replace('tasks_', '')
+    
+    // 检查是否有该日期的专属任务
+    let tasks = wx.getStorageSync(dateKey)
+    
+    if (!tasks || tasks.length === 0) {
+      // 如果没有该日期的任务，尝试从默认任务模板复制
+      const defaultTasks = wx.getStorageSync('adhd_tasks') || []
+      if (defaultTasks.length > 0) {
+        // 复制默认任务作为该日期的初始任务
+        tasks = defaultTasks.map(task => ({
+          ...task,
+          completed: false
+        }))
+        // 保存到该日期的存储中
+        wx.setStorageSync(dateKey, tasks)
+      } else {
+        tasks = []
+      }
+    }
+    
+    // 为每个任务添加对应的文字颜色
+    tasks = tasks.map(task => {
+      const textColor = this.getTextColor(task.color)
+      return {
+        ...task,
+        textColor: textColor
+      }
+    })
+    
+    // 更新日期显示
+    const [year, month, day] = dateStr.split('-')
+    const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const date = new Date(dateStr)
+    const weekDay = weekDays[date.getDay()]
+    
+    this.setData({
+      tasks: tasks,
+      currentDate: `${year}.${month}.${day} · ${weekDay}`,
+      currentDateDisplay: `${year}年${month}月${day}日`
+    }, () => {
+      this.calculateProgress()
+    })
   },
 
   /**
@@ -80,8 +162,39 @@ Page({
     const weekDay = weekDays[now.getDay()]
     
     this.setData({
-      currentDate: `${year}.${month}.${day} · ${weekDay}`
+      currentDate: `${year}.${month}.${day} · ${weekDay}`,
+      currentDateDisplay: `${year}年${month}月${day}日`
     })
+  },
+
+  /**
+   * 根据背景色获取对应的文字颜色
+   * 马卡龙色系配色方案
+   * @param {string} bgColor - 背景色
+   * @returns {string} 对应的文字颜色
+   */
+  getTextColor(bgColor) {
+    const colorMap = {
+      // 新马卡龙色系
+      '#E8F4FD': '#4A90D9', // 淡蓝 -> 深蓝
+      '#E8F8F0': '#52B788', // 淡绿 -> 深绿
+      '#FFF8E7': '#E8A838', // 淡黄 -> 深黄/橙
+      '#F0E8F8': '#9B6BC3', // 淡紫 -> 深紫
+      '#FCE8F0': '#E85A8F', // 淡粉 -> 深粉
+      '#FFF0E8': '#E8835A', // 淡橙 -> 深橙
+      '#E8F0F8': '#5A8FE8', // 淡青 -> 深青
+      '#F0F8E8': '#8FB85A', // 淡黄绿 -> 深黄绿
+      // 旧颜色兼容
+      '#E3F2FD': '#1976D2', // 旧蓝 -> 深蓝
+      '#F3E5F5': '#7B1FA2', // 旧紫 -> 深紫
+      '#FFF3E0': '#F57C00', // 旧橙 -> 深橙
+      '#E8F5E9': '#388E3C', // 旧绿 -> 深绿
+      '#FCE4EC': '#C2185B', // 旧粉 -> 深粉
+      '#FFCCBC': '#D84315', // 旧深橙 -> 更深橙
+      '#C5CAE9': '#303F9F', // 旧靛蓝 -> 深靛蓝
+      '#B2DFDB': '#00796B'  // 旧青 -> 深青
+    }
+    return colorMap[bgColor] || '#666666'
   },
 
   /**
@@ -97,11 +210,107 @@ Page({
    * 从本地存储加载任务列表
    */
   loadTasks() {
-    const tasks = wx.getStorageSync('adhd_tasks') || []
+    let tasks = wx.getStorageSync('adhd_tasks') || []
+    console.log('Raw tasks from storage:', tasks)
+
+    // 如果任务列表为空，尝试恢复
+    if (tasks.length === 0) {
+      // 延迟执行恢复检查，避免页面加载时弹窗
+      setTimeout(() => {
+        this.checkAndRecoverTasks()
+      }, 1000)
+    }
+
+    // 为每个任务添加对应的文字颜色
+    tasks = tasks.map(task => {
+      const textColor = this.getTextColor(task.color)
+      console.log(`Task "${task.name}": bg=${task.color}, text=${textColor}`)
+      return {
+        ...task,
+        textColor: textColor
+      }
+    })
+    console.log('Tasks with textColor:', tasks)
     // 使用 Promise 确保数据更新后再计算进度
     this.setData({ tasks }, () => {
+      console.log('setData completed, tasks in data:', this.data.tasks)
       // setData 回调函数：数据已更新到页面
       // 此时再计算进度，确保 gridSize 和 tasks 都已准备好
+      this.calculateProgress()
+    })
+  },
+
+  /**
+   * 检查并恢复任务
+   */
+  checkAndRecoverTasks() {
+    // 检查是否有历史数据可以恢复
+    const keys = wx.getStorageInfoSync().keys
+    const hasHistoryData = keys.some(key => key.startsWith('daily_'))
+
+    if (hasHistoryData) {
+      this.recoverLostTasks()
+    }
+  },
+
+  /**
+   * 重置并加载今天的任务
+   */
+  resetAndLoadTodayTasks() {
+    // 更新日期显示为今天
+    this.updateDate()
+    // 重置选中日期为今天
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const today = `${year}-${month}-${day}`
+    
+    this.setData({
+      selectedDate: today,
+      selectedDateIsToday: true
+    })
+    // 加载今天的任务（包含当天完成状态）
+    this.loadTodayTasks()
+  },
+
+  /**
+   * 加载今天的任务，合并当天已保存的完成状态
+   */
+  loadTodayTasks() {
+    // 获取今天的日期
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const today = `${year}-${month}-${day}`
+    
+    // 加载任务模板
+    let tasks = wx.getStorageSync('adhd_tasks') || []
+    
+    // 如果任务列表为空，尝试恢复
+    if (tasks.length === 0) {
+      setTimeout(() => {
+        this.checkAndRecoverTasks()
+      }, 1000)
+    }
+    
+    // 获取今天已保存的完成数据
+    const dailyData = wx.getStorageSync(`daily_${today}`) || { tasks: [] }
+    const completedTaskNames = new Set(dailyData.tasks.map(t => t.name))
+    
+    // 为每个任务添加对应的文字颜色，并恢复完成状态
+    tasks = tasks.map(task => {
+      const textColor = this.getTextColor(task.color)
+      return {
+        ...task,
+        textColor: textColor,
+        completed: completedTaskNames.has(task.name) // 恢复完成状态
+      }
+    })
+    
+    // 更新任务列表
+    this.setData({ tasks }, () => {
       this.calculateProgress()
     })
   },
@@ -141,6 +350,8 @@ Page({
     // 更新页面数据
     this.setData({
       progressPercent: percent,
+      completedCount,
+      totalCount: totalCells,
       progressText
     })
 
@@ -237,28 +448,62 @@ Page({
     // 更新已完成的连线记录
     this.setData({ completedLines: newCompletedLines })
 
-    // 如果有新的连线完成，显示烟花效果
+    // 如果有新的连线完成，显示 BINGO 弹窗
     if (hasNewLine) {
-      this.showFireworks()
+      // 计算当前完成的连线数量
+      const currentLineCount = newCompletedLines.length
+      this.showBingoModal(currentLineCount)
     }
   },
 
   /**
-   * 显示烟花效果
+   * 显示 BINGO 弹窗
+   * @param {Number} lineCount - 连线条数
    */
-  showFireworks() {
-    this.setData({ showFireworks: true })
-    // 2秒后自动关闭
-    setTimeout(() => {
-      this.setData({ showFireworks: false })
-    }, 2000)
+  showBingoModal(lineCount) {
+    // 生成彩纸数据
+    const confettiPieces = this.generateConfetti()
+    
+    this.setData({
+      showBingoModal: true,
+      bingoLineCount: lineCount,
+      confettiPieces: confettiPieces
+    })
   },
 
   /**
-   * 隐藏烟花效果
+   * 隐藏 BINGO 弹窗
    */
-  hideFireworks() {
-    this.setData({ showFireworks: false })
+  hideBingoModal() {
+    this.setData({ 
+      showBingoModal: false,
+      confettiPieces: []
+    })
+  },
+
+  /**
+   * 生成彩纸烟花数据
+   * @returns {Array} 彩纸数组
+   */
+  generateConfetti() {
+    const shapes = ['circle', 'bar', 'square']
+    const colors = ['gold', 'yellow', 'orange', 'light-gold', 'gray', 'white', 'rose']
+    const pieces = []
+    const count = 50 // 彩纸数量
+
+    for (let i = 0; i < count; i++) {
+      pieces.push({
+        id: `confetti-${i}-${Date.now()}`,
+        shape: shapes[Math.floor(Math.random() * shapes.length)],
+        color: colors[Math.floor(Math.random() * colors.length)],
+        left: Math.random() * 100, // 0-100% 水平位置
+        delay: Math.random() * 1.2, // 0-1.2s 延迟，错开飘落时间
+        duration: 2.5 + Math.random() * 2, // 2.5-4.5s 持续时间
+        rotation: Math.random() * 360 // 初始旋转角度
+      })
+    }
+
+    return pieces
   },
 
   /**
@@ -363,23 +608,59 @@ Page({
   },
 
   /**
+   * 播放完成音效和振动反馈
+   */
+  playCompleteSound() {
+    // 使用微信内置的短振动反馈
+    if (wx.vibrateShort) {
+      wx.vibrateShort({ type: 'light' })
+    }
+  },
+
+  /**
    * 点击格子切换任务完成状态
    * @param {Object} e - 事件对象，包含任务ID
    */
   toggleTask(e) {
     const id = e.currentTarget.dataset.id
+
+    // 切换选中状态
+    this.setData({ selectedTaskId: this.data.selectedTaskId === id ? null : id })
+
+    // 找到当前任务，判断是否即将完成
+    const currentTask = this.data.tasks.find(task => task.id === id)
+    const willComplete = currentTask && !currentTask.completed
+
+    // 生成格子彩纸数据（如果任务将被完成）
+    const cellConfetti = willComplete ? this.generateCellConfetti() : []
+
     // 遍历任务列表，找到对应任务并切换完成状态
     const tasks = this.data.tasks.map(task => {
       if (task.id === id) {
         // 切换completed状态，并添加动画标记
-        return { ...task, completed: !task.completed, animating: true }
+        return { 
+          ...task, 
+          completed: !task.completed, 
+          animating: true,
+          showConfetti: willComplete,
+          cellConfetti: cellConfetti
+        }
       }
       return task
     })
-    
-    // 保存到本地存储
+
+    // 如果任务被完成（不是取消完成），播放音效
+    if (willComplete) {
+      this.playCompleteSound()
+    }
+
+    // 保存到当前日期的本地存储
+    const dateKey = this.getCurrentDateKey()
+    wx.setStorageSync(dateKey, tasks)
+
+    // 同时更新默认任务模板（保持向后兼容）
     wx.setStorageSync('adhd_tasks', tasks)
-    
+
     // 更新页面数据，使用回调确保数据更新后再计算进度
     this.setData({ tasks }, () => {
       // 数据更新完成后重新计算进度
@@ -387,7 +668,7 @@ Page({
       // 保存今日进度到日历，传递更新后的任务列表
       this.saveDailyProgress(tasks)
     })
-    
+
     // 300毫秒后移除动画标记
     setTimeout(() => {
       const updatedTasks = this.data.tasks.map(task => {
@@ -398,6 +679,47 @@ Page({
       })
       this.setData({ tasks: updatedTasks })
     }, 300)
+
+    // 1500毫秒后移除彩纸效果
+    if (willComplete) {
+      setTimeout(() => {
+        const updatedTasks = this.data.tasks.map(task => {
+          if (task.id === id) {
+            return { ...task, showConfetti: false, cellConfetti: [] }
+          }
+          return task
+        })
+        this.setData({ tasks: updatedTasks })
+      }, 1500)
+    }
+  },
+
+  /**
+   * 生成格子彩纸数据（从四周飘落）
+   * @returns {Array} 彩纸数组
+   */
+  generateCellConfetti() {
+    const shapes = ['circle', 'bar', 'square']
+    const colors = ['gold', 'yellow', 'orange', 'light-gold', 'white']
+    const directions = ['top', 'bottom', 'left', 'right']
+    const pieces = []
+    const count = 16 // 增加彩纸数量，16片
+
+    for (let i = 0; i < count; i++) {
+      const direction = directions[Math.floor(Math.random() * directions.length)]
+      pieces.push({
+        id: `cell-confetti-${i}-${Date.now()}`,
+        shape: shapes[Math.floor(Math.random() * shapes.length)],
+        color: colors[Math.floor(Math.random() * colors.length)],
+        direction: direction, // 飘落方向
+        position: Math.random() * 100, // 在边线上的位置 0-100%
+        delay: Math.random() * 0.4, // 0-0.4s 延迟
+        duration: 1 + Math.random() * 0.8, // 1-1.8s 持续时间
+        rotation: Math.random() * 360
+      })
+    }
+
+    return pieces
   },
 
   /**
@@ -413,10 +735,15 @@ Page({
       // 交换位置i和位置j的元素
       [tasks[i], tasks[j]] = [tasks[j], tasks[i]]
     }
-    
+
     this.setData({ tasks })
+
+    // 保存到当前日期的存储
+    const dateKey = this.getCurrentDateKey()
+    wx.setStorageSync(dateKey, tasks)
+    // 同时更新默认任务模板
     wx.setStorageSync('adhd_tasks', tasks)
-    
+
     wx.showToast({
       title: '已随机排序',
       icon: 'success'
@@ -432,11 +759,17 @@ Page({
       ...task,
       completed: false
     }))
-    
+
     this.setData({ tasks })
+
+    // 保存到当前日期的存储
+    const dateKey = this.getCurrentDateKey()
+    wx.setStorageSync(dateKey, tasks)
+    // 同时更新默认任务模板
     wx.setStorageSync('adhd_tasks', tasks)
+
     this.calculateProgress()
-    
+
     wx.showToast({
       title: '已重置',
       icon: 'success'
@@ -466,8 +799,11 @@ Page({
    * 跳转到任务管理页面
    */
   goToTasks() {
+    const { selectedDate } = this.data
+    // 传递当前选中的日期给任务页面
+    const dateParam = selectedDate ? `?date=${selectedDate}` : ''
     wx.navigateTo({
-      url: '/pages/tasks/tasks'
+      url: `/pages/tasks/tasks${dateParam}`
     })
   },
 
@@ -564,6 +900,102 @@ Page({
       completed: dailyData.completed,
       total: dailyData.total
     }
+  },
+
+  /**
+   * 开始拖拽任务
+   */
+  startDrag(e) {
+    const { id, index } = e.currentTarget.dataset
+    console.log('Start dragging task:', id, index)
+    
+    // 标记拖拽中的任务
+    const tasks = this.data.tasks.map((task, i) => ({
+      ...task,
+      dragging: i === parseInt(index)
+    }))
+    
+    this.setData({
+      tasks,
+      draggingTaskId: id,
+      draggingIndex: parseInt(index),
+      isDragging: true
+    })
+    
+    // 显示拖拽提示
+    wx.showToast({
+      title: '长按拖拽排序',
+      icon: 'none',
+      duration: 1500
+    })
+  },
+
+  /**
+   * 拖拽移动中
+   */
+  onDragMove(e) {
+    if (!this.data.isDragging) return
+    
+    // 阻止默认行为，防止页面滚动
+    e.preventDefault()
+    
+    // 获取触摸位置
+    const touch = e.touches[0]
+    console.log('Dragging at:', touch.clientX, touch.clientY)
+    
+    // 计算当前触摸位置对应的格子索引
+    const gridSize = this.data.gridSize
+    const cellSize = 75 // 每个格子的大致尺寸（rpx）
+    const containerLeft = 20 // 容器左边距
+    const containerTop = 200 // 容器上边距
+    
+    // 转换为格子坐标
+    const col = Math.floor((touch.clientX - containerLeft) / cellSize)
+    const row = Math.floor((touch.clientY - containerTop) / cellSize)
+    const targetIndex = row * gridSize + col
+    
+    // 确保索引在有效范围内
+    if (targetIndex >= 0 && targetIndex < this.data.tasks.length && targetIndex !== this.data.draggingIndex) {
+      // 实时交换位置
+      const tasks = [...this.data.tasks]
+      const draggedTask = tasks[this.data.draggingIndex]
+      tasks.splice(this.data.draggingIndex, 1)
+      tasks.splice(targetIndex, 0, draggedTask)
+      
+      this.setData({
+        tasks,
+        draggingIndex: targetIndex // 更新拖拽索引
+      })
+    }
+  },
+
+  /**
+   * 拖拽结束
+   */
+  onDragEnd(e) {
+    if (!this.data.isDragging) return
+    
+    // 清除拖拽状态
+    const tasks = this.data.tasks.map(task => ({
+      ...task,
+      dragging: false
+    }))
+    
+    this.setData({
+      tasks,
+      isDragging: false,
+      draggingTaskId: null,
+      draggingIndex: null
+    })
+    
+    // 保存到本地存储
+    wx.setStorageSync('adhd_tasks', tasks)
+    
+    wx.showToast({
+      title: '位置已更新',
+      icon: 'success',
+      duration: 1000
+    })
   },
 
   /**
@@ -685,6 +1117,114 @@ Page({
   },
 
   /**
+   * 编辑选中日期 - 关闭日历弹窗并加载该日期的任务
+   */
+  goToEditToday() {
+    const { selectedDate, selectedDateIsToday } = this.data
+
+    // 关闭日历弹窗
+    this.setData({ showCalendarModal: false })
+
+    // 加载选中日期的任务（今天或其他日期都使用相同的加载逻辑）
+    this.loadTasksForSelectedDate(selectedDate)
+  },
+
+  /**
+   * 加载指定日期的任务
+   * @param {string} date - 日期字符串 YYYY-MM-DD
+   */
+  loadTasksForSelectedDate(date) {
+    const dateKey = `tasks_${date}`
+
+    // 检查是否有该日期的专属任务
+    let tasks = wx.getStorageSync(dateKey)
+
+    if (!tasks || tasks.length === 0) {
+      // 如果没有该日期的任务，尝试从默认任务模板复制
+      const defaultTasks = wx.getStorageSync('adhd_tasks') || []
+      if (defaultTasks.length > 0) {
+        // 复制默认任务作为该日期的初始任务
+        tasks = defaultTasks.map(task => ({
+          ...task,
+          completed: false
+        }))
+        // 保存到该日期的存储中
+        wx.setStorageSync(dateKey, tasks)
+      } else {
+        tasks = []
+      }
+    }
+
+    // 为每个任务添加对应的文字颜色
+    tasks = tasks.map(task => {
+      const textColor = this.getTextColor(task.color)
+      return {
+        ...task,
+        textColor: textColor
+      }
+    })
+
+    // 解析日期字符串，生成显示格式
+    const [year, month, day] = date.split('-')
+    const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const dateObj = new Date(date)
+    const weekDay = weekDays[dateObj.getDay()]
+
+    // 更新任务列表和日期显示
+    this.setData({
+      tasks: tasks,
+      selectedDate: date,
+      currentDate: `${year}.${month}.${day} · ${weekDay}`,
+      currentDateDisplay: `${year}年${month}月${day}日`
+    }, () => {
+      this.calculateProgress()
+    })
+
+    wx.showToast({
+      title: `已加载${month}月${day}日的任务`,
+      icon: 'none'
+    })
+  },
+
+  /**
+   * 加载历史日期的任务数据（用于日历查看历史记录，只读模式）
+   * @param {string} date - 日期字符串 YYYY-MM-DD
+   */
+  loadHistoryTasks(date) {
+    // 从本地存储获取该日期的任务数据
+    const dailyData = wx.getStorageSync(`daily_${date}`) || { tasks: [] }
+
+    // 将历史任务转换为当前任务格式
+    const historyTasks = dailyData.tasks.map((task, index) => ({
+      id: `history_${date}_${index}`,
+      name: task.name,
+      completed: true, // 历史任务默认已完成
+      color: '#FF9800', // 历史任务使用橙色标记
+      textColor: 'white',
+      isHistory: true,
+      date: date
+    }))
+
+    // 解析日期字符串，生成显示格式
+    const [year, month, day] = date.split('-')
+    const dateDisplay = `${year}年${month}月${day}日`
+
+    // 更新任务列表和日期显示
+    this.setData({
+      tasks: historyTasks,
+      currentDate: date,
+      currentDateDisplay: dateDisplay
+    }, () => {
+      this.calculateProgress()
+    })
+
+    wx.showToast({
+      title: `已加载${date}的任务`,
+      icon: 'none'
+    })
+  },
+
+  /**
    * 保存今日完成数据
    * 在任务完成时调用
    * @param {Array} taskList - 任务列表，如果不传则使用当前数据
@@ -725,5 +1265,72 @@ Page({
     wx.setStorageSync(`daily_${today}`, dailyData)
     
     console.log('保存到 storage:', `daily_${today}`, dailyData)
+  },
+
+  /**
+   * 恢复丢失的任务
+   * 尝试从历史每日数据中提取任务名称并恢复
+   */
+  recoverLostTasks() {
+    wx.showModal({
+      title: '恢复任务',
+      content: '检测到任务列表为空，是否尝试从历史记录中恢复？',
+      success: (res) => {
+        if (res.confirm) {
+          this.doRecoverTasks()
+        }
+      }
+    })
+  },
+
+  /**
+   * 执行任务恢复
+   */
+  doRecoverTasks() {
+    const recoveredTasks = new Set()
+    const taskColors = ['#E8F4FD', '#E8F8F0', '#FFF8E7', '#F0E8F8', '#FCE8F0', '#FFF0E8', '#E8F0F8', '#F0F8E8']
+    
+    // 获取所有本地存储的键
+    const keys = wx.getStorageInfoSync().keys
+    
+    // 遍历所有 daily_ 开头的存储键
+    keys.forEach(key => {
+      if (key.startsWith('daily_')) {
+        const dailyData = wx.getStorageSync(key) || { tasks: [] }
+        if (dailyData.tasks && dailyData.tasks.length > 0) {
+          dailyData.tasks.forEach(task => {
+            if (task.name) {
+              recoveredTasks.add(task.name)
+            }
+          })
+        }
+      }
+    })
+    
+    // 如果有恢复的任务，创建任务列表
+    if (recoveredTasks.size > 0) {
+      const tasks = Array.from(recoveredTasks).map((name, index) => ({
+        id: `recovered_${Date.now()}_${index}`,
+        name: name,
+        completed: false,
+        color: taskColors[index % taskColors.length]
+      }))
+      
+      // 保存恢复的任务
+      wx.setStorageSync('adhd_tasks', tasks)
+      
+      // 加载恢复的任务
+      this.loadTasks()
+      
+      wx.showToast({
+        title: `成功恢复 ${tasks.length} 个任务`,
+        icon: 'success'
+      })
+    } else {
+      wx.showToast({
+        title: '未找到历史任务数据',
+        icon: 'none'
+      })
+    }
   }
 })

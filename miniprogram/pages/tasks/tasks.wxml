@@ -1,5 +1,14 @@
 <!--pages/tasks/tasks.wxml-->
 <view class="container">
+  <!-- 页面标题 -->
+  <view class="page-header">
+    <view class="header-left">
+      <text class="back-icon" bindtap="goBack">‹</text>
+      <text class="page-title">任务管理</text>
+    </view>
+    <text wx:if="{{currentDate}}" class="current-date">{{currentDate}}</text>
+  </view>
+
   <!-- 布局分配 -->
   <view class="card layout-card">
     <text class="card-title">布局分配</text>
@@ -110,6 +119,12 @@
     </view>
   </view>
 
+  <!-- 任务灵感按钮 -->
+  <view class="inspiration-btn" bindtap="showInspirationModal">
+    <text class="inspiration-icon">💡</text>
+    <text class="inspiration-text">任务灵感</text>
+  </view>
+
   <!-- 新建分组按钮 -->
   <view class="new-group-btn" bindtap="createNewGroup">
     <text>+ 新建分组</text>
@@ -129,5 +144,99 @@
   </view>
   <view class="action-btn random" bindtap="randomSelect">
     <text>🎲 随机</text>
+  </view>
+</view>
+
+<!-- 任务灵感弹窗 -->
+<view class="inspiration-modal {{showInspiration ? 'show' : ''}}" bindtap="closeInspirationModal">
+  <view class="inspiration-content" catchtap="preventBubble">
+    <!-- 弹窗头部 -->
+    <view class="inspiration-header">
+      <text class="inspiration-title-icon">💡</text>
+      <text class="inspiration-title">任务灵感</text>
+      <view class="inspiration-close" bindtap="closeInspirationModal">
+        <text>×</text>
+      </view>
+    </view>
+
+    <!-- 弹窗内容区 -->
+    <scroll-view class="inspiration-scroll" scroll-y>
+      <!-- 个人护理 -->
+      <view class="inspiration-category">
+        <view class="category-header">
+          <text class="category-icon">🧼</text>
+          <text class="category-name">个人护理</text>
+        </view>
+        <view class="category-tags">
+          <view wx:for="{{inspirationTasks.personalCare}}" wx:key="*this" class="inspiration-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleInspirationTag" data-category="personalCare" data-index="{{index}}">
+            <text>{{item.name}}</text>
+            <text wx:if="{{item.selected}}" class="tag-check">✓</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 家务 -->
+      <view class="inspiration-category">
+        <view class="category-header">
+          <text class="category-icon">🏠</text>
+          <text class="category-name">家务</text>
+        </view>
+        <view class="category-tags">
+          <view wx:for="{{inspirationTasks.housework}}" wx:key="*this" class="inspiration-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleInspirationTag" data-category="housework" data-index="{{index}}">
+            <text>{{item.name}}</text>
+            <text wx:if="{{item.selected}}" class="tag-check">✓</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 生活维护 -->
+      <view class="inspiration-category">
+        <view class="category-header">
+          <text class="category-icon">🧠</text>
+          <text class="category-name">生活维护</text>
+        </view>
+        <view class="category-tags">
+          <view wx:for="{{inspirationTasks.lifeMaintenance}}" wx:key="*this" class="inspiration-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleInspirationTag" data-category="lifeMaintenance" data-index="{{index}}">
+            <text>{{item.name}}</text>
+            <text wx:if="{{item.selected}}" class="tag-check">✓</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 工作/学习 -->
+      <view class="inspiration-category">
+        <view class="category-header">
+          <text class="category-icon">💻</text>
+          <text class="category-name">工作 / 学习</text>
+        </view>
+        <view class="category-tags">
+          <view wx:for="{{inspirationTasks.workStudy}}" wx:key="*this" class="inspiration-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleInspirationTag" data-category="workStudy" data-index="{{index}}">
+            <text>{{item.name}}</text>
+            <text wx:if="{{item.selected}}" class="tag-check">✓</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 兴趣/放松 -->
+      <view class="inspiration-category">
+        <view class="category-header">
+          <text class="category-icon">🎨</text>
+          <text class="category-name">兴趣 / 放松</text>
+        </view>
+        <view class="category-tags">
+          <view wx:for="{{inspirationTasks.hobbyRelax}}" wx:key="*this" class="inspiration-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleInspirationTag" data-category="hobbyRelax" data-index="{{index}}">
+            <text>{{item.name}}</text>
+            <text wx:if="{{item.selected}}" class="tag-check">✓</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 弹窗底部按钮 -->
+    <view class="inspiration-footer">
+      <view class="inspiration-confirm-btn" bindtap="confirmInspirationSelection">
+        <text>添加选中任务</text>
+      </view>
+    </view>
   </view>
 </view>

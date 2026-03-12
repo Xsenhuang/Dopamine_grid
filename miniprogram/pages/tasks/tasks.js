@@ -14,10 +14,10 @@ Page({
     groupedTasks: [],
     // 新任务输入框的内容
     newTaskName: '',
-    // 当前选中的任务颜色
-    selectedColor: '#E3F2FD',
-    // 可选的任务颜色列表
-    colors: ['#E3F2FD', '#F3E5F5', '#FFF3E0', '#E8F5E9', '#FCE4EC', '#FFCCBC', '#C5CAE9', '#B2DFDB'],
+    // 当前选中的任务颜色（马卡龙色系）
+    selectedColor: '#E8F4FD',
+    // 可选的任务颜色列表 - 马卡龙色系
+    colors: ['#E8F4FD', '#E8F8F0', '#FFF8E7', '#F0E8F8', '#FCE8F0', '#FFF0E8', '#E8F0F8', '#F0F8E8'],
     // 当前格子布局大小
     gridSize: 5,
     // 可选的格子布局选项
@@ -36,13 +36,86 @@ Page({
     // 当前选中的分组ID
     currentGroupId: 'default',
     // 保存的分组列表
-    savedGroups: []
+    savedGroups: [],
+    // 当前编辑的日期
+    currentDate: '',
+
+    // 任务灵感弹窗显示状态
+    showInspiration: false,
+    // 任务灵感数据
+    inspirationTasks: {
+      personalCare: [
+        { name: '刷牙', selected: false },
+        { name: '洗脸', selected: false },
+        { name: '洗澡', selected: false },
+        { name: '洗头', selected: false },
+        { name: '涂护肤品', selected: false },
+        { name: '梳头发', selected: false },
+        { name: '涂防晒', selected: false },
+        { name: '修剪指甲', selected: false },
+        { name: '喝一杯水', selected: false }
+      ],
+      housework: [
+        { name: '倒垃圾', selected: false },
+        { name: '洗碗', selected: false },
+        { name: '扫地', selected: false },
+        { name: '拖地', selected: false },
+        { name: '收拾床铺', selected: false },
+        { name: '整理桌面', selected: false },
+        { name: '整理衣柜', selected: false },
+        { name: '整理书架', selected: false },
+        { name: '整理包包', selected: false },
+        { name: '浇花', selected: false }
+      ],
+      lifeMaintenance: [
+        { name: '上厕所', selected: false },
+        { name: '控制少刷信息流', selected: false },
+        { name: '深呼吸 30 秒', selected: false },
+        { name: '伸展身体', selected: false },
+        { name: '久坐不超1h', selected: false },
+        { name: '吃点水果', selected: false },
+        { name: '喝一杯酸奶', selected: false },
+        { name: '收拾鞋子', selected: false },
+        { name: '准备明天衣服', selected: false },
+        { name: '规划今天任务', selected: false }
+      ],
+      workStudy: [
+        { name: '打开电脑', selected: false },
+        { name: '写一段论文', selected: false },
+        { name: '画一张图', selected: false },
+        { name: '回一封邮件', selected: false },
+        { name: '看一页资料', selected: false },
+        { name: '整理文件', selected: false },
+        { name: '做5分钟笔记', selected: false },
+        { name: '规划明天日程', selected: false },
+        { name: '整理收藏夹', selected: false },
+        { name: '列出待办事项', selected: false }
+      ],
+      hobbyRelax: [
+        { name: '听一首歌', selected: false },
+        { name: '画一小幅速写', selected: false },
+        { name: '写一句日记', selected: false },
+        { name: '摆弄植物', selected: false },
+        { name: '做一小段手工', selected: false },
+        { name: '看一页书', selected: false },
+        { name: '做 5 分钟冥想', selected: false },
+        { name: '拉伸肩颈', selected: false },
+        { name: '喝一杯茶', selected: false },
+        { name: '听一集播客', selected: false }
+      ]
+    }
   },
 
   /**
    * 生命周期函数--监听页面加载
    */
-  onLoad() {
+  onLoad(options) {
+    // 获取传入的日期参数
+    const date = options?.date || ''
+    this.setData({ currentDate: date })
+
+    // 先尝试恢复分组数据（防止缓存被清理）
+    this.restoreGroupsFromBackup()
     this.loadTasks()
     this.loadGridSize()
     this.loadSelectedTasks()
@@ -71,6 +144,63 @@ Page({
     const groups = wx.getStorageSync('task_groups') || []
     this.setData({ tasks, savedGroups: groups })
     this.computeGroupedTasks()
+    // 同步分组历史记录到持久化存储
+    this.syncGroupHistory()
+  },
+
+  /**
+   * 同步分组历史记录到持久化存储
+   * 防止缓存被清理导致分组丢失
+   */
+  syncGroupHistory() {
+    const groups = wx.getStorageSync('task_groups') || []
+    // 同时保存到另一个备份键，增加数据安全性
+    wx.setStorageSync('task_groups_backup', groups)
+    // 保存分组历史记录（包含创建时间等元数据）
+    let groupHistory = wx.getStorageSync('task_groups_history') || {}
+    groups.forEach(group => {
+      if (!groupHistory[group.groupId]) {
+        groupHistory[group.groupId] = {
+          ...group,
+          createdAt: group.createdAt || Date.now(),
+          lastUsedAt: Date.now()
+        }
+      } else {
+        groupHistory[group.groupId].lastUsedAt = Date.now()
+        groupHistory[group.groupId].groupName = group.groupName
+      }
+    })
+    wx.setStorageSync('task_groups_history', groupHistory)
+  },
+
+  /**
+   * 恢复分组数据（从备份或历史记录）
+   */
+  restoreGroupsFromBackup() {
+    let groups = wx.getStorageSync('task_groups') || []
+    // 如果主存储为空，尝试从备份恢复
+    if (groups.length === 0) {
+      const backup = wx.getStorageSync('task_groups_backup') || []
+      if (backup.length > 0) {
+        groups = backup
+        wx.setStorageSync('task_groups', groups)
+        console.log('分组已从备份恢复')
+      }
+    }
+    // 如果备份也为空，尝试从历史记录恢复
+    if (groups.length === 0) {
+      const history = wx.getStorageSync('task_groups_history') || {}
+      const historyGroups = Object.values(history)
+      if (historyGroups.length > 0) {
+        groups = historyGroups.map(h => ({
+          groupId: h.groupId,
+          groupName: h.groupName
+        }))
+        wx.setStorageSync('task_groups', groups)
+        console.log('分组已从历史记录恢复')
+      }
+    }
+    return groups
   },
 
   /**
@@ -163,6 +293,23 @@ Page({
   },
 
   /**
+   * 保存任务到存储（支持按日期存储）
+   * @param {Array} tasks - 任务列表
+   */
+  saveTasks(tasks) {
+    const { currentDate } = this.data
+
+    // 如果有指定日期，保存到该日期的存储中
+    if (currentDate) {
+      const dateKey = `tasks_${currentDate}`
+      wx.setStorageSync(dateKey, tasks)
+    }
+
+    // 同时更新默认任务模板
+    wx.setStorageSync('adhd_tasks', tasks)
+  },
+
+  /**
    * 添加任务到指定分组
    */
   addTaskToGroup(e) {
@@ -198,7 +345,7 @@ Page({
       newTaskNames
     })
 
-    wx.setStorageSync('adhd_tasks', updatedTasks)
+    this.saveTasks(updatedTasks)
     this.computeGroupedTasks()
 
     wx.showToast({
@@ -248,7 +395,7 @@ Page({
       newTaskName: ''
     })
 
-    wx.setStorageSync('adhd_tasks', updatedTasks)
+    this.saveTasks(updatedTasks)
     this.computeGroupedTasks()
 
     wx.showToast({
@@ -415,6 +562,34 @@ Page({
    * 应用选择
    */
   applySelection() {
+    const { selectedTaskIds, tasks, currentDate } = this.data
+
+    // 获取选中的任务
+    const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id))
+
+    // 如果有指定日期，保存到该日期的存储中
+    if (currentDate) {
+      const dateKey = `tasks_${currentDate}`
+      // 获取该日期现有的任务，保留完成状态
+      const existingTasks = wx.getStorageSync(dateKey) || []
+      const existingCompletedMap = new Map()
+      existingTasks.forEach(t => {
+        existingCompletedMap.set(t.id, t.completed)
+      })
+
+      // 更新任务列表，保留完成状态
+      const updatedTasks = selectedTasks.map(t => ({
+        ...t,
+        completed: existingCompletedMap.get(t.id) || false
+      }))
+
+      wx.setStorageSync(dateKey, updatedTasks)
+      console.log(`已保存 ${selectedTasks.length} 个任务到 ${currentDate}`)
+    }
+
+    // 同时更新默认任务模板
+    wx.setStorageSync('adhd_tasks', selectedTasks)
+
     wx.showToast({
       title: '应用成功',
       icon: 'success'
@@ -477,11 +652,28 @@ Page({
         if (res.confirm && res.content) {
           const groupId = 'group_' + Date.now()
           const groupName = res.content.trim()
+          const createdAt = Date.now()
 
           // 保存分组信息到存储
           const groups = wx.getStorageSync('task_groups') || []
-          groups.push({ groupId, groupName })
+          groups.push({ groupId, groupName, createdAt })
           wx.setStorageSync('task_groups', groups)
+
+          // 同时保存到备份
+          wx.setStorageSync('task_groups_backup', groups)
+
+          // 保存到历史记录（永久保存）
+          let groupHistory = wx.getStorageSync('task_groups_history') || {}
+          groupHistory[groupId] = {
+            groupId,
+            groupName,
+            createdAt,
+            lastUsedAt: createdAt
+          }
+          wx.setStorageSync('task_groups_history', groupHistory)
+
+          // 更新页面数据中的分组列表
+          this.setData({ savedGroups: groups })
 
           // 刷新分组列表
           this.computeGroupedTasks()
@@ -527,6 +719,16 @@ Page({
           if (groupIndex !== -1) {
             groups[groupIndex].groupName = newGroupName
             wx.setStorageSync('task_groups', groups)
+            // 同步更新备份
+            wx.setStorageSync('task_groups_backup', groups)
+          }
+
+          // 更新历史记录
+          let groupHistory = wx.getStorageSync('task_groups_history') || {}
+          if (groupHistory[groupId]) {
+            groupHistory[groupId].groupName = newGroupName
+            groupHistory[groupId].lastUsedAt = Date.now()
+            wx.setStorageSync('task_groups_history', groupHistory)
           }
 
           // 更新该分组下所有任务的groupName
@@ -539,7 +741,7 @@ Page({
           })
 
           this.setData({ tasks: updatedTasks })
-          wx.setStorageSync('adhd_tasks', updatedTasks)
+          this.saveTasks(updatedTasks)
 
           // 刷新分组列表
           this.computeGroupedTasks()
@@ -569,6 +771,15 @@ Page({
           const groups = wx.getStorageSync('task_groups') || []
           const updatedGroups = groups.filter(g => g.groupId !== groupId)
           wx.setStorageSync('task_groups', updatedGroups)
+          // 同步更新备份
+          wx.setStorageSync('task_groups_backup', updatedGroups)
+
+          // 用户主动删除的分组，从历史记录中彻底删除
+          let groupHistory = wx.getStorageSync('task_groups_history') || {}
+          if (groupHistory[groupId]) {
+            delete groupHistory[groupId]
+            wx.setStorageSync('task_groups_history', groupHistory)
+          }
 
           // 将该分组下的任务移动到默认分组
           const { tasks } = this.data
@@ -583,7 +794,7 @@ Page({
             tasks: updatedTasks,
             savedGroups: updatedGroups
           })
-          wx.setStorageSync('adhd_tasks', updatedTasks)
+          this.saveTasks(updatedTasks)
 
           // 刷新分组列表
           this.computeGroupedTasks()
@@ -595,5 +806,111 @@ Page({
         }
       }
     })
+  },
+
+  /**
+   * 显示任务灵感弹窗
+   */
+  showInspirationModal() {
+    this.setData({ showInspiration: true })
+  },
+
+  /**
+   * 关闭任务灵感弹窗
+   */
+  closeInspirationModal() {
+    this.setData({ showInspiration: false })
+  },
+
+  /**
+   * 阻止事件冒泡
+   */
+  preventBubble() {
+    // 阻止事件冒泡，防止点击弹窗内容时关闭弹窗
+  },
+
+  /**
+   * 切换任务灵感标签选中状态
+   */
+  toggleInspirationTag(e) {
+    const { category, index } = e.currentTarget.dataset
+    const { inspirationTasks } = this.data
+    
+    // 切换选中状态
+    inspirationTasks[category][index].selected = !inspirationTasks[category][index].selected
+    
+    this.setData({ inspirationTasks })
+  },
+
+  /**
+   * 确认添加选中的灵感任务
+   */
+  confirmInspirationSelection() {
+    const { inspirationTasks, tasks, colors } = this.data
+    
+    // 收集所有选中的任务
+    const selectedTasks = []
+    Object.keys(inspirationTasks).forEach(category => {
+      inspirationTasks[category].forEach(item => {
+        if (item.selected) {
+          selectedTasks.push(item.name)
+        }
+      })
+    })
+    
+    if (selectedTasks.length === 0) {
+      wx.showToast({
+        title: '请先选择任务',
+        icon: 'none'
+      })
+      return
+    }
+    
+    // 添加选中的任务到默认分组
+    const newTasks = [...tasks]
+    selectedTasks.forEach(taskName => {
+      // 检查是否已存在同名任务
+      const exists = newTasks.some(t => t.name === taskName && (!t.groupId || t.groupId === 'default'))
+      if (!exists) {
+        const randomColor = colors[Math.floor(Math.random() * colors.length)]
+        newTasks.push({
+          id: Date.now() + Math.random(),
+          name: taskName,
+          color: randomColor,
+          completed: false,
+          groupId: 'default',
+          groupName: '默认分组'
+        })
+      }
+    })
+    
+    // 保存任务
+    this.setData({ tasks: newTasks })
+    this.saveTasks(newTasks)
+    this.computeGroupedTasks()
+    
+    // 重置选中状态
+    this.resetInspirationSelection()
+    
+    // 关闭弹窗
+    this.setData({ showInspiration: false })
+    
+    wx.showToast({
+      title: `已添加 ${selectedTasks.length} 个任务`,
+      icon: 'success'
+    })
+  },
+
+  /**
+   * 重置任务灵感选中状态
+   */
+  resetInspirationSelection() {
+    const { inspirationTasks } = this.data
+    Object.keys(inspirationTasks).forEach(category => {
+      inspirationTasks[category].forEach(item => {
+        item.selected = false
+      })
+    })
+    this.setData({ inspirationTasks })
   }
 })

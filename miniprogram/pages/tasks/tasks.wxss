@@ -8,6 +8,41 @@
   box-sizing: border-box;
 }
 
+/* 页面标题 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+  padding: 10rpx 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+}
+
+.back-icon {
+  font-size: 48rpx;
+  color: #666;
+  padding: 0 10rpx;
+}
+
+.page-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.current-date {
+  font-size: 26rpx;
+  color: #999;
+  background: #F0F0F0;
+  padding: 8rpx 16rpx;
+  border-radius: 20rpx;
+}
+
 /* 顶部标题栏 */
 .header {
   display: flex;
@@ -308,4 +343,193 @@
   font-size: 28rpx;
   color: #666;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+/* 任务灵感按钮 */
+.inspiration-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  height: 80rpx;
+  background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  color: #F9A825;
+  box-shadow: 0 2rpx 12rpx rgba(249, 168, 37, 0.15);
+  margin-bottom: 20rpx;
+  border: 2rpx solid #FFE082;
+}
+
+.inspiration-btn:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.inspiration-icon {
+  font-size: 32rpx;
+}
+
+.inspiration-text {
+  font-weight: 500;
+}
+
+/* 任务灵感弹窗 */
+.inspiration-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s;
+  z-index: 1000;
+}
+
+.inspiration-modal.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.inspiration-content {
+  width: 100%;
+  max-height: 85vh;
+  background: #F8F8F8;
+  border-radius: 40rpx 40rpx 0 0;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s ease-out;
+}
+
+.inspiration-modal.show .inspiration-content {
+  transform: translateY(0);
+}
+
+/* 弹窗头部 */
+.inspiration-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30rpx;
+  position: relative;
+  background: #F8F8F8;
+  border-radius: 40rpx 40rpx 0 0;
+}
+
+.inspiration-title-icon {
+  font-size: 36rpx;
+  margin-right: 10rpx;
+}
+
+.inspiration-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.inspiration-close {
+  position: absolute;
+  right: 30rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  color: #999;
+}
+
+/* 弹窗滚动区 */
+.inspiration-scroll {
+  flex: 1;
+  max-height: 65vh;
+  padding: 0 30rpx;
+}
+
+/* 灵感分类 */
+.inspiration-category {
+  margin-bottom: 30rpx;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-bottom: 20rpx;
+}
+
+.category-icon {
+  font-size: 32rpx;
+}
+
+.category-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #666;
+}
+
+/* 分类标签 */
+.category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15rpx;
+}
+
+.inspiration-tag {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 15rpx 25rpx;
+  background: white;
+  border: 2rpx solid #E0E0E0;
+  border-radius: 35rpx;
+  font-size: 26rpx;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.inspiration-tag:active {
+  transform: scale(0.95);
+}
+
+.inspiration-tag.selected {
+  background: #E8E0D5;
+  border-color: #D4C4B0;
+  color: #5D4E37;
+}
+
+.tag-check {
+  font-size: 22rpx;
+  color: #8B7355;
+}
+
+/* 弹窗底部 */
+.inspiration-footer {
+  padding: 20rpx 30rpx 40rpx;
+  background: #F8F8F8;
+}
+
+.inspiration-confirm-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80rpx;
+  background: #D4C4B0;
+  border-radius: 40rpx;
+  font-size: 30rpx;
+  color: white;
+  font-weight: 500;
+}
+
+.inspiration-confirm-btn:active {
+  opacity: 0.9;
+  transform: scale(0.98);
 }

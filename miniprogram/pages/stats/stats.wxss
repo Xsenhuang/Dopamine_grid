@@ -22,6 +22,71 @@
   color: var(--text-secondary);
 }
 
+/* 日期选择器 */
+.date-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30rpx;
+  margin-bottom: 30rpx;
+  padding: 20rpx;
+  background: white;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+}
+
+.date-nav {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F5F5F5;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.date-nav:active {
+  background: #E0E0E0;
+  transform: scale(0.95);
+}
+
+.date-nav.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.nav-arrow {
+  font-size: 40rpx;
+  color: var(--text-primary);
+  font-weight: 300;
+}
+
+.date-display {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 40rpx;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+  border-radius: 40rpx;
+  transition: all 0.3s ease;
+}
+
+.date-display:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.date-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: white;
+}
+
+.date-icon {
+  font-size: 32rpx;
+}
+
 /* 概览卡片 */
 .overview-card {
   margin-bottom: 30rpx;
@@ -88,7 +153,6 @@
   width: 280rpx;
   height: 280rpx;
   border-radius: 50%;
-  padding: 20rpx;
   background: #F0F0F0;
 }
 
@@ -102,8 +166,8 @@
 }
 
 .circle-inner {
-  width: 200rpx;
-  height: 200rpx;
+  width: 220rpx;
+  height: 220rpx;
   background: white;
   border-radius: 50%;
   display: flex;
@@ -179,6 +243,17 @@
   text-align: right;
 }
 
+.dist-tasks {
+  display: block;
+  font-size: 22rpx;
+  color: var(--text-hint);
+  margin-top: 8rpx;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 连续记录卡片 */
 .streak-card {
   margin-bottom: 30rpx;
@@ -232,4 +307,201 @@
   color: var(--text-primary);
   line-height: 1.6;
   font-style: italic;
+}
+
+/* 日历弹窗 */
+.calendar-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.calendar-modal.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.calendar-content {
+  width: 680rpx;
+  background: white;
+  border-radius: 24rpx;
+  padding: 40rpx;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.calendar-modal.show .calendar-content {
+  transform: scale(1);
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.calendar-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.calendar-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F5F5F5;
+  border-radius: 50%;
+  font-size: 28rpx;
+  color: var(--text-secondary);
+}
+
+.calendar-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.calendar-nav-btn {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F5F5F5;
+  border-radius: 50%;
+  font-size: 32rpx;
+  color: var(--text-primary);
+  font-weight: 300;
+}
+
+.calendar-month {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10rpx;
+  margin-bottom: 20rpx;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  padding: 16rpx 0;
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10rpx;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16rpx;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.calendar-day:active {
+  background: #F0F0F0;
+}
+
+.calendar-day.other-month {
+  opacity: 0.3;
+}
+
+.calendar-day.today {
+  background: #E3F2FD;
+}
+
+.calendar-day.today .day-number {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.calendar-day.selected {
+  background: var(--primary-color);
+}
+
+.calendar-day.selected .day-number {
+  color: white;
+  font-weight: 600;
+}
+
+.day-number {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.day-dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  margin-top: 6rpx;
+}
+
+.calendar-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30rpx;
+  padding-top: 30rpx;
+  border-top: 2rpx solid #F0F0F0;
+}
+
+.calendar-legend {
+  display: flex;
+  gap: 30rpx;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+}
+
+.legend-dot.today-dot {
+  background: #E3F2FD;
+  border: 2rpx solid var(--primary-color);
+}
+
+.calendar-today-btn {
+  padding: 16rpx 32rpx;
+  background: var(--primary-color);
+  border-radius: 30rpx;
+  font-size: 26rpx;
+  color: white;
+  font-weight: 500;
 }
