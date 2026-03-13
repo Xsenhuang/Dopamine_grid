@@ -1,13 +1,28 @@
 <!--pages/index/index.wxml-->
 <view class="container">
-  <!-- 顶部导航 -->
-  <view class="header">
-    <text class="header-title">多巴胺格子</text>
-    <view class="header-actions">
-      <view class="header-date-selector" bindtap="showCalendar">
-        <text class="header-date-text">{{currentDateDisplay}}</text>
-        <text class="header-date-arrow">▼</text>
-      </view>
+  <!-- 用户信息栏 -->
+  <view class="user-bar">
+    <!-- 登录入口已隐藏，后续开放登录时取消注释
+    <view class="user-info" bindtap="goToLogin">
+      <block wx:if="{{isLoggedIn && userInfo}}">
+        <image class="user-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
+        <text class="user-name">{{userInfo.nickName}}</text>
+      </block>
+      <block wx:else>
+        <view class="user-avatar-default">
+          <text class="user-avatar-icon">👤</text>
+        </view>
+        <text class="user-name">登录</text>
+      </block>
+    </view>
+    -->
+    <!-- 体验模式：只显示标题 -->
+    <view class="app-title">
+      <text class="app-name">多巴胺格子</text>
+    </view>
+    <view class="layout-selector" bindtap="showLayoutDropdown">
+      <text class="layout-selector-text">布局 {{gridSize}}×{{gridSize}}</text>
+      <text class="layout-selector-arrow">▼</text>
     </view>
   </view>
 
@@ -24,16 +39,12 @@
         </view>
       </view>
     </view>
-    <view class="progress-bar-container">
-      <view class="progress-bar-bg">
-        <view class="progress-bar-fill" style="width: {{progressPercent}}%"></view>
-      </view>
-    </view>
   </view>
 
   <!-- 多巴胺格子 -->
   <view class="card bingo-card">
     <view class="bingo-grid" style="grid-template-columns: repeat({{gridSize}}, 1fr);">
+      <!-- 已有任务的格子 -->
       <view
         wx:for="{{tasks}}"
         wx:for-index="index"
@@ -53,22 +64,48 @@
         </view>
         <text class="cell-text" style="color: {{item.completed || selectedTaskId === item.id ? 'white' : (item.textColor || '#666666')}};">{{item.name}}</text>
       </view>
+      <!-- 空格子（带加号） -->
+      <view
+        wx:for="{{emptyCells}}"
+        wx:for-index="index"
+        wx:key="index"
+        class="bingo-cell empty-cell"
+        bindtap="showAddTaskModal"
+      >
+        <text class="empty-cell-icon">+</text>
+      </view>
     </view>
   </view>
 
   <!-- 底部功能按钮 -->
   <view class="bottom-actions">
-    <view class="action-btn" bindtap="goToTasks">
-      <text class="btn-icon">📝</text>
-      <text class="btn-text">任务</text>
+    <view class="action-btn primary" bindtap="goToTasks">
+      <text class="btn-text">任务管理</text>
     </view>
-    <view class="action-btn primary" bindtap="randomizeTasks">
-      <text class="btn-icon">🎲</text>
+    <view class="action-btn" bindtap="randomizeTasks">
       <text class="btn-text">随机</text>
     </view>
     <view class="action-btn" bindtap="resetAll">
-      <text class="btn-icon">↺</text>
       <text class="btn-text">重置</text>
+    </view>
+    <view class="action-btn" bindtap="goToStats">
+      <text class="btn-text">统计</text>
+    </view>
+  </view>
+</view>
+
+<!-- 布局选择下拉菜单 -->
+<view wx:if="{{showLayoutDropdown}}" class="dropdown-overlay" bindtap="hideLayoutDropdown">
+  <view class="dropdown-menu" catchtap="preventHide">
+    <view 
+      wx:for="{{[3, 4, 5, 6]}}" 
+      wx:key="*this" 
+      class="dropdown-item {{gridSize === item ? 'selected' : ''}}"
+      bindtap="selectGridSize"
+      data-size="{{item}}"
+    >
+      <text class="dropdown-item-text">{{item}}×{{item}}</text>
+      <text wx:if="{{gridSize === item}}" class="dropdown-check">✓</text>
     </view>
   </view>
 </view>
@@ -179,6 +216,35 @@
     <view class="calendar-footer">
       <view class="back-today-btn" bindtap="goToEditToday">
         <text>编辑该日期 ✎</text>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 新增任务弹窗 -->
+<view wx:if="{{showAddTaskModal}}" class="add-task-modal" bindtap="hideAddTaskModal">
+  <view class="add-task-content" catchtap="preventHide">
+    <view class="add-task-header">
+      <text class="add-task-title">新建任务</text>
+      <view class="add-task-close" bindtap="hideAddTaskModal">
+        <text>✕</text>
+      </view>
+    </view>
+    <view class="add-task-body">
+      <input
+        class="add-task-input"
+        placeholder="请输入任务名称"
+        value="{{newTaskName}}"
+        bindinput="onNewTaskInput"
+        focus="{{showAddTaskModal}}"
+      />
+    </view>
+    <view class="add-task-footer">
+      <view class="add-task-btn cancel" bindtap="hideAddTaskModal">
+        <text>取消</text>
+      </view>
+      <view class="add-task-btn confirm" bindtap="confirmAddTask">
+        <text>创建</text>
       </view>
     </view>
   </view>

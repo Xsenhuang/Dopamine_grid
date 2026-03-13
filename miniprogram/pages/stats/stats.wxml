@@ -2,94 +2,65 @@
 <view class="container">
   <!-- 日期选择器 -->
   <view class="date-selector">
-    <view class="date-nav" bindtap="onPrevDate">
+    <view class="date-nav" bindtap="onPrevWeek">
       <text class="nav-arrow">‹</text>
     </view>
-    <view class="date-display" bindtap="onSelectDate">
-      <text class="date-text">{{currentDateText}}</text>
-      <text class="date-icon">📅</text>
+    <view class="date-display">
+      <text class="date-text">{{weekRangeText}}</text>
     </view>
-    <view class="date-nav {{isToday ? 'disabled' : ''}}" bindtap="onNextDate">
+    <view class="date-nav {{isCurrentWeek ? 'disabled' : ''}}" bindtap="onNextWeek">
       <text class="nav-arrow">›</text>
     </view>
   </view>
 
-  <!-- 今日概览 -->
-  <view class="card overview-card">
-    <text class="card-title">{{isToday ? '今日概览' : '当日概览'}}</text>
-    <view class="overview-grid">
-      <view class="overview-item">
-        <text class="overview-value">{{todayStats.total}}</text>
-        <text class="overview-label">总任务</text>
+  <!-- 周热力图 -->
+  <view class="card heatmap-card">
+    <text class="card-title">周热力图</text>
+    <view class="heatmap-container">
+      <!-- 星期表头 -->
+      <view class="heatmap-header">
+        <view class="heatmap-task-label"></view>
+        <view class="heatmap-days">
+          <view wx:for="{{weekDays}}" wx:key="index" class="heatmap-day-label {{item.isToday ? 'today' : ''}}">
+            <text class="day-name">{{item.name}}</text>
+            <text class="day-date">{{item.date}}</text>
+          </view>
+        </view>
       </view>
-      <view class="overview-item">
-        <text class="overview-value completed">{{todayStats.completed}}</text>
-        <text class="overview-label">已完成</text>
-      </view>
-      <view class="overview-item">
-        <text class="overview-value pending">{{todayStats.pending}}</text>
-        <text class="overview-label">待完成</text>
-      </view>
-      <view class="overview-item">
-        <text class="overview-value percentage">{{todayStats.percentage}}%</text>
-        <text class="overview-label">完成率</text>
-      </view>
-    </view>
-  </view>
-
-  <!-- 完成度环形图 -->
-  <view class="card chart-card">
-    <text class="card-title">完成进度</text>
-    <view class="circle-chart">
-      <view class="circle-bg">
-        <view class="circle-progress" style="background: conic-gradient(var(--primary-color) {{todayStats.percentage * 3.6}}deg, #F0F0F0 0deg);">
-          <view class="circle-inner">
-            <text class="chart-percentage">{{todayStats.percentage}}%</text>
-            <text class="chart-label">已完成</text>
+      <!-- 任务热力图行 -->
+      <view class="heatmap-body">
+        <view wx:for="{{heatmapTasks}}" wx:key="id" class="heatmap-row">
+          <view class="heatmap-task-label">
+            <text class="task-name">{{item.name}}</text>
+          </view>
+          <view class="heatmap-days">
+            <view 
+              wx:for="{{item.weekStatus}}" 
+              wx:for-item="status" 
+              wx:for-index="dayIndex"
+              wx:key="dayIndex"
+              class="heatmap-cell {{status.completed ? 'completed' : ''}} {{status.isFuture ? 'future' : ''}}"
+              style="background-color: {{status.completed ? item.color : ''}}"
+            ></view>
           </view>
         </view>
       </view>
     </view>
   </view>
 
-  <!-- 颜色分布 -->
-  <view class="card distribution-card">
-    <text class="card-title">任务分类</text>
-    <view class="color-distribution">
-      <view 
-        wx:for="{{colorStats}}" 
-        wx:key="color"
-        class="distribution-item"
-      >
-        <view class="dist-color" style="background-color: {{item.color}}"></view>
-        <view class="dist-info">
-          <text class="dist-name">{{item.name}}</text>
-          <view class="dist-bar-bg">
-            <view class="dist-bar-fill" style="width: {{item.percentage}}%; background-color: {{item.color}}"></view>
-          </view>
-          <text class="dist-tasks" wx:if="{{item.taskNamesText}}">{{item.taskNamesText}}</text>
+  <!-- 习惯榜单 -->
+  <view class="card ranking-card">
+    <text class="card-title">习惯榜单</text>
+    <view class="ranking-list">
+      <view wx:for="{{taskRankings}}" wx:key="id" class="ranking-item">
+        <view class="ranking-number">{{index + 1}}.</view>
+        <view class="ranking-name">{{item.name}}</view>
+        <view class="ranking-stats">
+          <text class="ranking-streak" wx:if="{{item.streak > 0}}">连续 {{item.streak}}</text>
+          <text class="ranking-total">总计 {{item.total}}</text>
         </view>
-        <text class="dist-count">{{item.count}}个</text>
       </view>
     </view>
-  </view>
-
-  <!-- 连续完成天数 -->
-  <view class="card streak-card">
-    <view class="streak-header">
-      <text class="card-title">连续记录</text>
-      <view class="streak-badge">
-        <text class="streak-icon">🔥</text>
-        <text class="streak-count">{{streakDays}} 天</text>
-      </view>
-    </view>
-    <text class="streak-desc">保持连续完成任务的习惯！</text>
-  </view>
-
-  <!-- 鼓励语 -->
-  <view class="card quote-card">
-    <text class="quote-icon">💬</text>
-    <text class="quote-text">{{dailyQuote}}</text>
   </view>
 
   <!-- 日历弹窗 -->

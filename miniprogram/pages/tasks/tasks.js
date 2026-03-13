@@ -18,6 +18,17 @@ Page({
     selectedColor: '#E8F4FD',
     // 可选的任务颜色列表 - 马卡龙色系
     colors: ['#E8F4FD', '#E8F8F0', '#FFF8E7', '#F0E8F8', '#FCE8F0', '#FFF0E8', '#E8F0F8', '#F0F8E8'],
+    // 颜色映射：浅色背景色 -> 深色文字/边框色
+    colorMap: {
+      '#E8F4FD': '#1976D2', // 浅蓝 -> 深蓝
+      '#E8F8F0': '#2E7D32', // 浅绿 -> 深绿
+      '#FFF8E7': '#F57C00', // 浅橙 -> 深橙
+      '#F0E8F8': '#7B1FA2', // 浅紫 -> 深紫
+      '#FCE8F0': '#C2185B', // 浅粉 -> 深粉
+      '#FFF0E8': '#E64A19', // 浅珊瑚 -> 深珊瑚
+      '#E8F0F8': '#1565C0', // 浅青 -> 深青
+      '#F0F8E8': '#558B2F'  // 浅薄荷 -> 深薄荷
+    },
     // 当前格子布局大小
     gridSize: 5,
     // 可选的格子布局选项
@@ -119,6 +130,9 @@ Page({
     this.loadTasks()
     this.loadGridSize()
     this.loadSelectedTasks()
+    // 从当天任务存储同步选中状态，然后重新计算分组
+    this.syncSelectedTasksFromDaily()
+    this.computeGroupedTasks()
   },
 
   /**
@@ -127,6 +141,10 @@ Page({
   onShow() {
     this.loadTasks()
     this.loadSelectedTasks()
+    // 从当天任务存储同步选中状态
+    this.syncSelectedTasksFromDaily()
+    // 重新计算分组任务的选中状态
+    this.computeGroupedTasks()
   },
 
   /**
@@ -142,6 +160,7 @@ Page({
   loadTasks() {
     const tasks = wx.getStorageSync('adhd_tasks') || []
     const groups = wx.getStorageSync('task_groups') || []
+    console.log('loadTasks called, tasks:', tasks)
     this.setData({ tasks, savedGroups: groups })
     this.computeGroupedTasks()
     // 同步分组历史记录到持久化存储
@@ -215,16 +234,73 @@ Page({
    * 从本地存储加载已选中的任务
    */
   loadSelectedTasks() {
-    const selectedTaskIds = wx.getStorageSync('selected_task_ids') || []
+    const selectedTaskIds = (wx.getStorageSync('selected_task_ids') || []).map(id => Number(id))
+    console.log('loadSelectedTasks called, selectedTaskIds:', selectedTaskIds)
     this.setData({ selectedTaskIds })
+  },
+
+  /**
+   * 从当天的任务存储中同步选中状态
+   * 当 selected_task_ids 为空但当天有任务时，将当天任务设为选中
+   */
+  syncSelectedTasksFromDaily() {
+    const { currentDate } = this.data
+    const dateKey = currentDate ? `tasks_${currentDate}` : `tasks_${this.getTodayDate()}`
+    
+    // 获取当天的任务
+    const dailyTasks = wx.getStorageSync(dateKey) || []
+    console.log('syncSelectedTasksFromDaily:', { dateKey, dailyTasksCount: dailyTasks.length })
+    
+    if (dailyTasks.length > 0) {
+      // 获取当前选中的任务ID
+      let selectedTaskIds = wx.getStorageSync('selected_task_ids') || []
+      
+      // 如果当前没有选中的任务，或者需要同步
+      // 将当天任务的ID设为选中
+      const dailyTaskIds = dailyTasks.map(t => t.id)
+      
+      // 合并现有选中ID和当天任务ID（去重）
+      const mergedIds = [...new Set([...selectedTaskIds, ...dailyTaskIds])]
+      
+      console.log('Syncing selected tasks:', { 
+        previousSelected: selectedTaskIds, 
+        dailyTaskIds, 
+        mergedIds 
+      })
+      
+      // 保存到存储
+      wx.setStorageSync('selected_task_ids', mergedIds)
+      this.setData({ selectedTaskIds: mergedIds })
+    }
   },
 
   /**
    * 计算分组任务
    */
   computeGroupedTasks() {
-    const { tasks, selectedTaskIds, savedGroups } = this.data
-    const defaultTasks = tasks.filter(t => !t.groupId || t.groupId === 'default')
+    const { tasks, selectedTaskIds, savedGroups, colorMap } = this.data
+    console.log('computeGroupedTasks called, tasks count:', tasks.length)
+    console.log('colorMap:', colorMap)
+
+    // 为任务添加 darkColor 和 selected 属性
+    const processTask = (task) => {
+      const bgColor = task.color || '#E8F4FD'
+      const darkColor = task.darkColor || colorMap[bgColor] || '#1976D2'
+      // 确保类型一致，都转为数字比较
+      const taskId = Number(task.id)
+      const isSelected = selectedTaskIds.some(id => Number(id) === taskId)
+      console.log('processTask:', task.name, 'id:', taskId, 'selected:', isSelected, 'selectedTaskIds:', selectedTaskIds)
+      return {
+        ...task,
+        color: bgColor,
+        darkColor: darkColor,
+        selected: isSelected
+      }
+    }
+
+    const defaultTasks = tasks
+      .filter(t => !t.groupId || t.groupId === 'default')
+      .map(processTask)
 
     // 按分组ID分组
     const groupMap = {}
@@ -237,7 +313,7 @@ Page({
             tasks: []
           }
         }
-        groupMap[task.groupId].tasks.push(task)
+        groupMap[task.groupId].tasks.push(processTask(task))
       }
     })
 
@@ -254,13 +330,14 @@ Page({
 
     const groupedTasks = Object.values(groupMap)
 
-    // 计算默认分组全选状态
-    const defaultGroupAllSelected = defaultTasks.length > 0 && defaultTasks.every(t => selectedTaskIds.includes(t.id))
+    // 计算默认分组全选状态（确保类型一致，都转为数字比较）
+    const normalizedSelectedIds = selectedTaskIds.map(id => Number(id))
+    const defaultGroupAllSelected = defaultTasks.length > 0 && defaultTasks.every(t => normalizedSelectedIds.includes(Number(t.id)))
 
-    // 计算各分组全选状态
+    // 计算各分组全选状态（确保类型一致，都转为数字比较）
     const groupAllSelected = {}
     groupedTasks.forEach(group => {
-      groupAllSelected[group.groupId] = group.tasks.length > 0 && group.tasks.every(t => selectedTaskIds.includes(t.id))
+      groupAllSelected[group.groupId] = group.tasks.length > 0 && group.tasks.every(t => normalizedSelectedIds.includes(Number(t.id)))
     })
 
     // 更新分组选项
@@ -315,7 +392,7 @@ Page({
   addTaskToGroup(e) {
     const groupId = e.currentTarget.dataset.groupId
     const groupName = e.currentTarget.dataset.groupName
-    const { newTaskNames = {}, tasks, colors } = this.data
+    const { newTaskNames = {}, tasks, colors, selectedTaskIds } = this.data
     const taskName = newTaskNames[groupId]
 
     if (!taskName || !taskName.trim()) {
@@ -328,11 +405,13 @@ Page({
 
     // 随机选择一个颜色
     const randomColor = colors[Math.floor(Math.random() * colors.length)]
+    const { colorMap } = this.data
 
     const newTask = {
       id: Date.now(),
       name: taskName.trim(),
       color: randomColor,
+      darkColor: colorMap[randomColor] || '#1976D2',
       completed: false,
       groupId: groupId,
       groupName: groupName
@@ -340,12 +419,18 @@ Page({
 
     const updatedTasks = [...tasks, newTask]
     newTaskNames[groupId] = ''
+
+    // 自动选中新创建的任务，确保ID类型一致（都转为数字）
+    const updatedSelectedIds = [...selectedTaskIds.map(id => Number(id)), newTask.id]
+
     this.setData({
       tasks: updatedTasks,
-      newTaskNames
+      newTaskNames,
+      selectedTaskIds: updatedSelectedIds
     })
 
     this.saveTasks(updatedTasks)
+    wx.setStorageSync('selected_task_ids', updatedSelectedIds)
     this.computeGroupedTasks()
 
     wx.showToast({
@@ -379,23 +464,32 @@ Page({
 
     // 随机选择一个颜色
     const randomColor = colors[Math.floor(Math.random() * colors.length)]
+    const { colorMap } = this.data
 
     const newTask = {
       id: Date.now(),
       name: newTaskName.trim(),
       color: randomColor,
+      darkColor: colorMap[randomColor] || '#1976D2',
       completed: false,
       groupId: currentGroupId,
       groupName: groupName
     }
 
     const updatedTasks = [...tasks, newTask]
+
+    // 自动选中新创建的任务，确保ID类型一致（都转为数字）
+    const { selectedTaskIds } = this.data
+    const updatedSelectedIds = [...selectedTaskIds.map(id => Number(id)), newTask.id]
+
     this.setData({
       tasks: updatedTasks,
-      newTaskName: ''
+      newTaskName: '',
+      selectedTaskIds: updatedSelectedIds
     })
 
     this.saveTasks(updatedTasks)
+    wx.setStorageSync('selected_task_ids', updatedSelectedIds)
     this.computeGroupedTasks()
 
     wx.showToast({
@@ -449,29 +543,39 @@ Page({
    * 切换任务选中状态
    */
   toggleTaskSelection(e) {
-    const id = parseInt(e.currentTarget.dataset.id)
+    const id = Number(e.currentTarget.dataset.id)
+    console.log('toggleTaskSelection called, id:', id, 'type:', typeof id)
     const { selectedTaskIds, gridSize, tasks } = this.data
     const maxSelect = gridSize * gridSize
 
+    // 确保 selectedTaskIds 中的 id 都是数字类型
+    const normalizedSelectedIds = selectedTaskIds.map(taskId => Number(taskId))
+    
     let newSelectedIds
-    const index = selectedTaskIds.indexOf(id)
+    const index = normalizedSelectedIds.indexOf(id)
+    console.log('current selectedTaskIds:', normalizedSelectedIds, 'index:', index)
     if (index > -1) {
       // 取消选中
-      newSelectedIds = selectedTaskIds.filter(taskId => taskId !== id)
+      newSelectedIds = normalizedSelectedIds.filter(taskId => taskId !== id)
+      console.log('取消选中, newSelectedIds:', newSelectedIds)
     } else {
       // 选中，检查是否超过最大数量
-      if (selectedTaskIds.length >= maxSelect) {
+      if (normalizedSelectedIds.length >= maxSelect) {
         wx.showToast({
           title: `最多选择${maxSelect}个任务`,
           icon: 'none'
         })
         return
       }
-      newSelectedIds = [...selectedTaskIds, id]
+      newSelectedIds = [...normalizedSelectedIds, id]
+      console.log('选中, newSelectedIds:', newSelectedIds)
     }
 
     this.setData({ selectedTaskIds: newSelectedIds })
     wx.setStorageSync('selected_task_ids', newSelectedIds)
+
+    // 重新计算分组任务，更新 selected 属性
+    this.computeGroupedTasks()
 
     // 更新全选状态
     this.updateGroupSelectAllStatus(newSelectedIds, tasks)
@@ -481,8 +585,11 @@ Page({
    * 更新分组全选状态
    */
   updateGroupSelectAllStatus(selectedTaskIds, tasks) {
+    // 确保类型一致，都转为数字比较
+    const normalizedSelectedIds = selectedTaskIds.map(id => Number(id))
+    
     const defaultTasks = tasks.filter(t => !t.groupId || t.groupId === 'default')
-    const defaultGroupAllSelected = defaultTasks.length > 0 && defaultTasks.every(t => selectedTaskIds.includes(t.id))
+    const defaultGroupAllSelected = defaultTasks.length > 0 && defaultTasks.every(t => normalizedSelectedIds.includes(Number(t.id)))
 
     const groupMap = {}
     tasks.forEach(task => {
@@ -497,7 +604,7 @@ Page({
     const groupAllSelected = {}
     Object.keys(groupMap).forEach(groupId => {
       const groupTasks = groupMap[groupId].tasks
-      groupAllSelected[groupId] = groupTasks.length > 0 && groupTasks.every(t => selectedTaskIds.includes(t.id))
+      groupAllSelected[groupId] = groupTasks.length > 0 && groupTasks.every(t => normalizedSelectedIds.includes(Number(t.id)))
     })
 
     this.setData({ defaultGroupAllSelected, groupAllSelected })
@@ -509,17 +616,20 @@ Page({
   selectAll() {
     const { tasks, gridSize, selectedTaskIds } = this.data
     const maxSelect = gridSize * gridSize
-    
+
     if (selectedTaskIds.length === tasks.length && tasks.length > 0) {
       // 如果已经全选，则取消全选
       this.setData({ selectedTaskIds: [] })
       wx.setStorageSync('selected_task_ids', [])
     } else {
       // 全选，但不超过最大数量
-      const allIds = tasks.slice(0, maxSelect).map(t => t.id)
+      const allIds = tasks.slice(0, maxSelect).map(t => Number(t.id))
       this.setData({ selectedTaskIds: allIds })
       wx.setStorageSync('selected_task_ids', allIds)
     }
+
+    // 重新计算分组任务，更新选中状态
+    this.computeGroupedTasks()
   },
 
   /**
@@ -528,6 +638,9 @@ Page({
   cancelAll() {
     this.setData({ selectedTaskIds: [] })
     wx.setStorageSync('selected_task_ids', [])
+
+    // 重新计算分组任务，更新选中状态
+    this.computeGroupedTasks()
   },
 
   /**
@@ -536,7 +649,7 @@ Page({
   randomSelect() {
     const { tasks, gridSize } = this.data
     const maxSelect = gridSize * gridSize
-    
+
     if (tasks.length === 0) {
       wx.showToast({
         title: '没有任务可选择',
@@ -544,51 +657,91 @@ Page({
       })
       return
     }
-    
+
     // 随机打乱任务顺序
     const shuffled = [...tasks].sort(() => Math.random() - 0.5)
-    const randomIds = shuffled.slice(0, Math.min(maxSelect, tasks.length)).map(t => t.id)
-    
+    const randomIds = shuffled.slice(0, Math.min(maxSelect, tasks.length)).map(t => Number(t.id))
+
     this.setData({ selectedTaskIds: randomIds })
     wx.setStorageSync('selected_task_ids', randomIds)
-    
+
+    // 重新计算分组任务，更新选中状态
+    this.computeGroupedTasks()
+
     wx.showToast({
       title: '已随机选择',
       icon: 'success'
     })
+
+    // 自动应用选择，无需点击应用按钮
+    this.applySelection()
   },
 
   /**
    * 应用选择
    */
   applySelection() {
-    const { selectedTaskIds, tasks, currentDate } = this.data
+    const { selectedTaskIds, tasks, currentDate, defaultTasks, groupedTasks } = this.data
+    
+    console.log('applySelection called')
+    console.log('currentDate:', currentDate)
+    console.log('selectedTaskIds:', selectedTaskIds)
+    console.log('tasks count:', tasks.length)
+    console.log('defaultTasks count:', defaultTasks.length)
+    console.log('groupedTasks count:', groupedTasks.length)
+    
+    // 合并所有显示的任务（defaultTasks + groupedTasks 中的所有任务）
+    const allDisplayTasks = [...defaultTasks]
+    groupedTasks.forEach(group => {
+      allDisplayTasks.push(...group.tasks)
+    })
+    console.log('allDisplayTasks count:', allDisplayTasks.length)
 
-    // 获取选中的任务
-    const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id))
+    // 获取选中的任务（使用 selected 属性）
+    const selectedTasks = allDisplayTasks.filter(t => t.selected)
+    console.log('selectedTasks count:', selectedTasks.length)
+    console.log('selectedTasks:', selectedTasks.map(t => ({ id: t.id, name: t.name })))
 
-    // 如果有指定日期，保存到该日期的存储中
-    if (currentDate) {
-      const dateKey = `tasks_${currentDate}`
-      // 获取该日期现有的任务，保留完成状态
-      const existingTasks = wx.getStorageSync(dateKey) || []
-      const existingCompletedMap = new Map()
-      existingTasks.forEach(t => {
-        existingCompletedMap.set(t.id, t.completed)
-      })
+    // 保存到该日期的存储中（无论 currentDate 是否存在，都使用今天的日期）
+    const dateToUse = currentDate || this.getTodayDate()
+    const dateKey = `tasks_${dateToUse}`
+    console.log('Saving to dateKey:', dateKey)
 
-      // 更新任务列表，保留完成状态
-      const updatedTasks = selectedTasks.map(t => ({
-        ...t,
-        completed: existingCompletedMap.get(t.id) || false
-      }))
+    // 获取该日期现有的任务，保留完成状态
+    const existingTasks = wx.getStorageSync(dateKey) || []
+    const existingCompletedMap = new Map()
+    existingTasks.forEach(t => {
+      existingCompletedMap.set(t.id, t.completed)
+    })
 
-      wx.setStorageSync(dateKey, updatedTasks)
-      console.log(`已保存 ${selectedTasks.length} 个任务到 ${currentDate}`)
-    }
+    // 更新选中的任务，保留完成状态
+    const updatedSelectedTasks = selectedTasks.map(t => ({
+      ...t,
+      completed: existingCompletedMap.get(t.id) || false
+    }))
 
-    // 同时更新默认任务模板
-    wx.setStorageSync('adhd_tasks', selectedTasks)
+    // 保存到日期存储 - 只保存选中的任务
+    wx.setStorageSync(dateKey, updatedSelectedTasks)
+    console.log(`已保存 ${updatedSelectedTasks.length} 个任务到 ${dateToUse}`)
+
+    // 同时更新默认任务模板 - 保存所有任务（使用原始的 tasks，确保不丢失任何任务）
+    // 注意：这里必须使用 this.data.tasks 而不是 allDisplayTasks，以确保所有任务都被保存
+    const allTasksToSave = tasks.map(t => ({
+      id: t.id,
+      name: t.name,
+      color: t.color,
+      darkColor: t.darkColor,
+      completed: existingCompletedMap.get(t.id) || false,
+      groupId: t.groupId,
+      groupName: t.groupName
+    }))
+    wx.setStorageSync('adhd_tasks', allTasksToSave)
+    console.log(`已保存 ${allTasksToSave.length} 个任务到 adhd_tasks`)
+
+    // 保存选中的任务ID列表
+    const selectedTaskIdsToSave = selectedTasks.map(t => t.id)
+    wx.setStorageSync('selected_task_ids', selectedTaskIdsToSave)
+    console.log('已保存 selected_task_ids:', selectedTaskIdsToSave)
 
     wx.showToast({
       title: '应用成功',
@@ -597,6 +750,17 @@ Page({
     setTimeout(() => {
       wx.navigateBack()
     }, 500)
+  },
+  
+  /**
+   * 获取今天的日期字符串
+   */
+  getTodayDate() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   },
 
   /**
@@ -634,6 +798,9 @@ Page({
 
     this.setData({ selectedTaskIds: newSelectedIds })
     wx.setStorageSync('selected_task_ids', newSelectedIds)
+
+    // 重新计算分组任务，更新 selected 属性（UI样式）
+    this.computeGroupedTasks()
 
     // 更新全选状态
     this.updateGroupSelectAllStatus(newSelectedIds, tasks)
@@ -740,7 +907,8 @@ Page({
             return task
           })
 
-          this.setData({ tasks: updatedTasks })
+          // 同步更新 savedGroups，确保 computeGroupedTasks 能读取到最新的分组名称
+          this.setData({ tasks: updatedTasks, savedGroups: groups })
           this.saveTasks(updatedTasks)
 
           // 刷新分组列表
@@ -748,6 +916,94 @@ Page({
 
           wx.showToast({
             title: '修改成功',
+            icon: 'success'
+          })
+        }
+      }
+    })
+  },
+
+  /**
+   * 阻止事件冒泡
+   */
+  onTaskActionTap() {
+    // 阻止事件冒泡，防止触发任务选择
+  },
+
+  /**
+   * 编辑任务
+   */
+  editTask(e) {
+    const task = e.currentTarget.dataset.task
+    
+    wx.showModal({
+      title: '编辑任务',
+      content: task.name,
+      editable: true,
+      placeholderText: '请输入任务名称',
+      success: (res) => {
+        if (res.confirm && res.content) {
+          const newName = res.content.trim()
+          if (!newName) {
+            wx.showToast({
+              title: '任务名称不能为空',
+              icon: 'none'
+            })
+            return
+          }
+
+          // 更新任务名称
+          const { tasks } = this.data
+          const updatedTasks = tasks.map(t => {
+            if (t.id === task.id) {
+              return { ...t, name: newName }
+            }
+            return t
+          })
+
+          this.setData({ tasks: updatedTasks })
+          this.saveTasks(updatedTasks)
+          this.computeGroupedTasks()
+
+          wx.showToast({
+            title: '修改成功',
+            icon: 'success'
+          })
+        }
+      }
+    })
+  },
+
+  /**
+   * 删除任务
+   */
+  deleteTask(e) {
+    const taskId = parseInt(e.currentTarget.dataset.taskId)
+    
+    wx.showModal({
+      title: '确认删除',
+      content: '确定要删除这个任务吗？',
+      confirmColor: '#EF5350',
+      success: (res) => {
+        if (res.confirm) {
+          // 从任务列表中删除
+          const { tasks, selectedTaskIds } = this.data
+          const updatedTasks = tasks.filter(t => t.id !== taskId)
+          
+          // 同时从已选任务中移除
+          const updatedSelectedIds = selectedTaskIds.filter(id => id !== taskId)
+
+          this.setData({ 
+            tasks: updatedTasks,
+            selectedTaskIds: updatedSelectedIds
+          })
+          
+          this.saveTasks(updatedTasks)
+          wx.setStorageSync('selected_task_ids', updatedSelectedIds)
+          this.computeGroupedTasks()
+
+          wx.showToast({
+            title: '删除成功',
             icon: 'success'
           })
         }

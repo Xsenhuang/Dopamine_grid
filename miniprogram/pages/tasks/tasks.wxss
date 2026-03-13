@@ -98,38 +98,34 @@
   display: flex;
   gap: 20rpx;
   padding: 20rpx;
-  background: white;
-  border-radius: 20rpx;
-  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.08);
+  background: transparent;
   z-index: 100;
 }
 
 .action-btn {
   flex: 1;
-  height: 70rpx;
+  height: 80rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #F0F0F0;
-  border-radius: 35rpx;
-  font-size: 26rpx;
-  color: #666;
+  background: white;
+  border: 2rpx solid #A78BFA;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #8B5CF6;
   transition: all 0.2s;
 }
 
 .action-btn.active {
-  background: #E3F2FD;
-  color: #1976D2;
+  background: #F3E8FF;
+  border-color: #8B5CF6;
+  color: #8B5CF6;
 }
 
 .action-btn.primary {
-  background: #64B5F6;
+  background: #A78BFA;
+  border: none;
   color: white;
-}
-
-.action-btn.random {
-  background: #FFF8E1;
-  color: #F9A825;
 }
 
 /* 布局分配卡片 */
@@ -273,15 +269,19 @@
 
 
 
-/* 任务标签 */
+/* 任务标签 - 默认状态：浅色底 + 黑色文字和icon */
 .task-tag {
-  padding: 15rpx 30rpx;
+  padding: 15rpx 20rpx;
+  padding-right: 10rpx;
   border: 2rpx solid transparent;
   border-radius: 35rpx;
   font-size: 26rpx;
-  color: #666;
-  background: white;
+  color: #333;
+  background: var(--tag-bg-color, #E8F4FD);
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
 }
 
 .task-tag:active {
@@ -289,13 +289,54 @@
   opacity: 0.8;
 }
 
-.task-tag {
+/* 标签文字 - 默认黑色 */
+.tag-text {
+  color: #333;
+  font-weight: normal;
+}
+
+/* 选中状态：深色底 + 白色文字和icon + 文字加粗 */
+.task-tag.selected {
+  background: var(--tag-dark-color, #1976D2);
+  border: 2rpx solid var(--tag-dark-color, #1976D2);
+}
+
+.task-tag.selected .tag-text {
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* 任务标签操作按钮 */
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 5rpx;
+  margin-left: 5rpx;
+}
+
+.task-action-btn {
+  width: 44rpx;
+  height: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
   transition: all 0.2s;
 }
 
-.task-tag.selected {
-  color: #333;
-  border: 2rpx solid #333;
+.action-icon {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+/* 默认状态下icon为黑色 */
+.task-tag .action-icon {
+  filter: brightness(0);
+}
+
+/* 选中状态下icon为白色 */
+.task-tag.selected .action-icon {
+  filter: brightness(0) invert(1);
 }
 
 /* 添加任务输入区 */
@@ -321,14 +362,14 @@
 .add-btn {
   width: 80rpx;
   height: 80rpx;
-  background: #FF8A65;
+  background: #A78BFA;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 40rpx;
   color: white;
-  box-shadow: 0 4rpx 12rpx rgba(255, 138, 101, 0.3);
+  box-shadow: 0 4rpx 12rpx rgba(167, 139, 250, 0.3);
 }
 
 /* 新建分组按钮 */

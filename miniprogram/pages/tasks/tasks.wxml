@@ -1,33 +1,8 @@
 <!--pages/tasks/tasks.wxml-->
 <view class="container">
-  <!-- 页面标题 -->
-  <view class="page-header">
-    <view class="header-left">
-      <text class="back-icon" bindtap="goBack">‹</text>
-      <text class="page-title">任务管理</text>
-    </view>
-    <text wx:if="{{currentDate}}" class="current-date">{{currentDate}}</text>
-  </view>
-
-  <!-- 布局分配 -->
-  <view class="card layout-card">
-    <text class="card-title">布局分配</text>
-    <view class="layout-options">
-      <view 
-        wx:for="{{gridOptions}}" 
-        wx:key="*this"
-        class="layout-option {{gridSize === item ? 'selected' : ''}}"
-        bindtap="selectGridSize"
-        data-size="{{item}}"
-      >
-        <text>{{item}}×{{item}}</text>
-      </view>
-    </view>
-  </view>
-
   <!-- 已选数量提示 -->
   <view class="selected-hint">
-    <text>已选 {{selectedTaskIds.length}} 个（Bingo 使用前 {{gridSize * gridSize}} 个）</text>
+    <text>已选{{selectedTaskIds.length}}个（格子使用前{{gridSize * gridSize}}个）</text>
   </view>
 
   <!-- 任务分组列表 -->
@@ -43,23 +18,31 @@
         </view>
       </view>
       <view class="group-tasks">
-        <view 
-          wx:for="{{defaultTasks}}" 
+        <view
+          wx:for="{{defaultTasks}}"
           wx:for-index="idx"
           wx:key="id"
-          class="task-tag {{selectedTaskIds.indexOf(item.id) !== -1 ? 'selected' : ''}}"
-          style="{{selectedTaskIds.indexOf(item.id) !== -1 ? 'background-color: ' + (item.color || '#64B5F6') + '; border-color: ' + (item.color || '#64B5F6') + ';' : ''}}"
+          class="task-tag {{item.selected ? 'selected' : ''}}"
+          style="--tag-bg-color: {{item.color || '#E8F4FD'}}; --tag-dark-color: {{item.darkColor || '#1976D2'}};"
           bindtap="toggleTaskSelection"
           data-id="{{item.id}}"
         >
-          <text>{{item.name}}</text>
+          <text class="tag-text">{{item.name}}</text>
+          <view class="task-actions">
+            <view class="task-action-btn edit" catchtap="editTask" data-task="{{item}}">
+              <image class="action-icon" src="/assets/icons/edit.svg" mode="aspectFit"/>
+            </view>
+            <view class="task-action-btn delete" catchtap="deleteTask" data-task-id="{{item.id}}">
+              <image class="action-icon" src="/assets/icons/delete.svg" mode="aspectFit"/>
+            </view>
+          </view>
         </view>
       </view>
       <!-- 添加任务输入区 -->
       <view class="add-task-section">
-        <input 
-          class="task-input" 
-          placeholder="添加任务…" 
+        <input
+          class="task-input"
+          placeholder="输入任务，例如：喝一杯美式"
           value="{{newTaskName}}"
           bindinput="onInputChange"
           maxlength="20"
@@ -89,24 +72,32 @@
         </view>
       </view>
       <view class="group-tasks">
-        <view 
-          wx:for="{{group.tasks}}" 
+        <view
+          wx:for="{{group.tasks}}"
           wx:for-item="task"
           wx:for-index="taskIdx"
           wx:key="id"
-          class="task-tag {{selectedTaskIds.indexOf(task.id) !== -1 ? 'selected' : ''}}"
-          style="{{selectedTaskIds.indexOf(task.id) !== -1 ? 'background-color: ' + (task.color || '#64B5F6') + '; border-color: ' + (task.color || '#64B5F6') + ';' : ''}}"
+          class="task-tag {{task.selected ? 'selected' : ''}}"
+          style="--tag-bg-color: {{task.color || '#E8F4FD'}}; --tag-dark-color: {{task.darkColor || '#1976D2'}};"
           bindtap="toggleTaskSelection"
           data-id="{{task.id}}"
         >
-          <text>{{task.name}}</text>
+          <text class="tag-text">{{task.name}}</text>
+          <view class="task-actions">
+            <view class="task-action-btn edit" catchtap="editTask" data-task="{{task}}">
+              <image class="action-icon" src="/assets/icons/edit.svg" mode="aspectFit"/>
+            </view>
+            <view class="task-action-btn delete" catchtap="deleteTask" data-task-id="{{task.id}}">
+              <image class="action-icon" src="/assets/icons/delete.svg" mode="aspectFit"/>
+            </view>
+          </view>
         </view>
       </view>
       <!-- 添加任务输入区 -->
       <view class="add-task-section">
-        <input 
-          class="task-input" 
-          placeholder="添加任务…" 
+        <input
+          class="task-input"
+          placeholder="输入任务，例如：喝一杯美式"
           value="{{newTaskNames[group.groupId] || ''}}"
           bindinput="onGroupInputChange"
           data-group-id="{{group.groupId}}"
@@ -119,11 +110,11 @@
     </view>
   </view>
 
-  <!-- 任务灵感按钮 -->
-  <view class="inspiration-btn" bindtap="showInspirationModal">
+  <!-- 任务灵感按钮（暂时隐藏） -->
+  <!-- <view class="inspiration-btn" bindtap="showInspirationModal">
     <text class="inspiration-icon">💡</text>
     <text class="inspiration-text">任务灵感</text>
-  </view>
+  </view> -->
 
   <!-- 新建分组按钮 -->
   <view class="new-group-btn" bindtap="createNewGroup">
@@ -139,104 +130,12 @@
   <view class="action-btn {{selectedTaskIds.length === tasks.length && tasks.length > 0 ? 'active' : ''}}" bindtap="selectAll">
     <text>全选</text>
   </view>
+  <view class="action-btn" bindtap="randomSelect">
+    <text>随机选择</text>
+  </view>
   <view class="action-btn primary" bindtap="applySelection">
-    <text>应用 ✓</text>
-  </view>
-  <view class="action-btn random" bindtap="randomSelect">
-    <text>🎲 随机</text>
+    <text>应用</text>
   </view>
 </view>
 
-<!-- 任务灵感弹窗 -->
-<view class="inspiration-modal {{showInspiration ? 'show' : ''}}" bindtap="closeInspirationModal">
-  <view class="inspiration-content" catchtap="preventBubble">
-    <!-- 弹窗头部 -->
-    <view class="inspiration-header">
-      <text class="inspiration-title-icon">💡</text>
-      <text class="inspiration-title">任务灵感</text>
-      <view class="inspiration-close" bindtap="closeInspirationModal">
-        <text>×</text>
-      </view>
-    </view>
 
-    <!-- 弹窗内容区 -->
-    <scroll-view class="inspiration-scroll" scroll-y>
-      <!-- 个人护理 -->
-      <view class="inspiration-category">
-        <view class="category-header">
-          <text class="category-icon">🧼</text>
-          <text class="category-name">个人护理</text>
-        </view>
-        <view class="category-tags">
-          <view wx:for="{{inspirationTasks.personalCare}}" wx:key="*this" class="inspiration-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleInspirationTag" data-category="personalCare" data-index="{{index}}">
-            <text>{{item.name}}</text>
-            <text wx:if="{{item.selected}}" class="tag-check">✓</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 家务 -->
-      <view class="inspiration-category">
-        <view class="category-header">
-          <text class="category-icon">🏠</text>
-          <text class="category-name">家务</text>
-        </view>
-        <view class="category-tags">
-          <view wx:for="{{inspirationTasks.housework}}" wx:key="*this" class="inspiration-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleInspirationTag" data-category="housework" data-index="{{index}}">
-            <text>{{item.name}}</text>
-            <text wx:if="{{item.selected}}" class="tag-check">✓</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 生活维护 -->
-      <view class="inspiration-category">
-        <view class="category-header">
-          <text class="category-icon">🧠</text>
-          <text class="category-name">生活维护</text>
-        </view>
-        <view class="category-tags">
-          <view wx:for="{{inspirationTasks.lifeMaintenance}}" wx:key="*this" class="inspiration-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleInspirationTag" data-category="lifeMaintenance" data-index="{{index}}">
-            <text>{{item.name}}</text>
-            <text wx:if="{{item.selected}}" class="tag-check">✓</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 工作/学习 -->
-      <view class="inspiration-category">
-        <view class="category-header">
-          <text class="category-icon">💻</text>
-          <text class="category-name">工作 / 学习</text>
-        </view>
-        <view class="category-tags">
-          <view wx:for="{{inspirationTasks.workStudy}}" wx:key="*this" class="inspiration-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleInspirationTag" data-category="workStudy" data-index="{{index}}">
-            <text>{{item.name}}</text>
-            <text wx:if="{{item.selected}}" class="tag-check">✓</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 兴趣/放松 -->
-      <view class="inspiration-category">
-        <view class="category-header">
-          <text class="category-icon">🎨</text>
-          <text class="category-name">兴趣 / 放松</text>
-        </view>
-        <view class="category-tags">
-          <view wx:for="{{inspirationTasks.hobbyRelax}}" wx:key="*this" class="inspiration-tag {{item.selected ? 'selected' : ''}}" bindtap="toggleInspirationTag" data-category="hobbyRelax" data-index="{{index}}">
-            <text>{{item.name}}</text>
-            <text wx:if="{{item.selected}}" class="tag-check">✓</text>
-          </view>
-        </view>
-      </view>
-    </scroll-view>
-
-    <!-- 弹窗底部按钮 -->
-    <view class="inspiration-footer">
-      <view class="inspiration-confirm-btn" bindtap="confirmInspirationSelection">
-        <text>添加选中任务</text>
-      </view>
-    </view>
-  </view>
-</view>

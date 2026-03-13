@@ -56,7 +56,22 @@ Page({
     selectedDateIsToday: true,
     selectedDatePercent: 0,
     selectedDateCompleted: 0,
-    selectedDateTasks: []
+    selectedDateTasks: [],
+    // 空格子数组（用于填充未满的格子）
+    emptyCells: [],
+    // 是否显示新增任务弹窗
+    showAddTaskModal: false,
+    // 新任务名称
+    newTaskName: '',
+    // 选中的颜色
+    selectedColor: '#E8F4FD',
+    // 可选颜色列表
+    colorOptions: ['#E8F4FD', '#E8F8F0', '#FFF8E7', '#F0E8F8', '#FCE8F0', '#FFF0E8', '#E8F0F8', '#F0F8E8'],
+    // 是否显示布局下拉菜单
+    showLayoutDropdown: false,
+    // 用户信息
+    userInfo: null,
+    isLoggedIn: false
   },
 
   /**
@@ -81,6 +96,26 @@ Page({
     this.loadGridSize()
     // 加载当前选中日期的任务（可能是今天或其他日期）
     this.loadTasksForCurrentDate()
+    // 加载用户信息
+    this.loadUserInfo()
+  },
+
+  /**
+   * 加载用户信息
+   */
+  loadUserInfo() {
+    const userInfo = wx.getStorageSync('user_info')
+    if (userInfo) {
+      this.setData({
+        userInfo: userInfo,
+        isLoggedIn: true
+      })
+    } else {
+      this.setData({
+        userInfo: null,
+        isLoggedIn: false
+      })
+    }
   },
 
   /**
@@ -125,12 +160,14 @@ Page({
       }
     }
     
-    // 为每个任务添加对应的文字颜色
+    // 为每个任务添加对应的文字颜色，并清除彩带效果
     tasks = tasks.map(task => {
       const textColor = this.getTextColor(task.color)
       return {
         ...task,
-        textColor: textColor
+        textColor: textColor,
+        showConfetti: false,
+        cellConfetti: []
       }
     })
     
@@ -140,8 +177,15 @@ Page({
     const date = new Date(dateStr)
     const weekDay = weekDays[date.getDay()]
     
+    // 计算空格子数量
+    const totalCells = this.data.gridSize * this.data.gridSize
+    const taskCount = tasks.length
+    const emptyCount = Math.max(0, totalCells - taskCount)
+    const emptyCells = new Array(emptyCount).fill(0).map((_, i) => i)
+
     this.setData({
       tasks: tasks,
+      emptyCells: emptyCells,
       currentDate: `${year}.${month}.${day} · ${weekDay}`,
       currentDateDisplay: `${year}年${month}月${day}日`
     }, () => {
@@ -221,18 +265,27 @@ Page({
       }, 1000)
     }
 
-    // 为每个任务添加对应的文字颜色
+    // 为每个任务添加对应的文字颜色，并清除彩带效果
     tasks = tasks.map(task => {
       const textColor = this.getTextColor(task.color)
       console.log(`Task "${task.name}": bg=${task.color}, text=${textColor}`)
       return {
         ...task,
-        textColor: textColor
+        textColor: textColor,
+        showConfetti: false,
+        cellConfetti: []
       }
     })
     console.log('Tasks with textColor:', tasks)
+
+    // 计算空格子数量
+    const totalCells = this.data.gridSize * this.data.gridSize
+    const taskCount = tasks.length
+    const emptyCount = Math.max(0, totalCells - taskCount)
+    const emptyCells = new Array(emptyCount).fill(0).map((_, i) => i)
+
     // 使用 Promise 确保数据更新后再计算进度
-    this.setData({ tasks }, () => {
+    this.setData({ tasks, emptyCells }, () => {
       console.log('setData completed, tasks in data:', this.data.tasks)
       // setData 回调函数：数据已更新到页面
       // 此时再计算进度，确保 gridSize 和 tasks 都已准备好
@@ -299,13 +352,15 @@ Page({
     const dailyData = wx.getStorageSync(`daily_${today}`) || { tasks: [] }
     const completedTaskNames = new Set(dailyData.tasks.map(t => t.name))
     
-    // 为每个任务添加对应的文字颜色，并恢复完成状态
+    // 为每个任务添加对应的文字颜色，恢复完成状态，并清除彩带效果
     tasks = tasks.map(task => {
       const textColor = this.getTextColor(task.color)
       return {
         ...task,
         textColor: textColor,
-        completed: completedTaskNames.has(task.name) // 恢复完成状态
+        completed: completedTaskNames.has(task.name), // 恢复完成状态
+        showConfetti: false,
+        cellConfetti: []
       }
     })
     
@@ -624,48 +679,55 @@ Page({
   toggleTask(e) {
     const id = e.currentTarget.dataset.id
 
-    // 切换选中状态
-    this.setData({ selectedTaskId: this.data.selectedTaskId === id ? null : id })
-
-    // 找到当前任务，判断是否即将完成
+    // 找到当前任务
     const currentTask = this.data.tasks.find(task => task.id === id)
-    const willComplete = currentTask && !currentTask.completed
+    if (!currentTask) return
 
-    // 生成格子彩纸数据（如果任务将被完成）
-    const cellConfetti = willComplete ? this.generateCellConfetti() : []
+    // 如果任务已完成，点击后取消完成状态
+    if (currentTask.completed) {
+      this.cancelTaskComplete(id)
+      return
+    }
 
-    // 遍历任务列表，找到对应任务并切换完成状态
+    // 未完成的任务，点击后直接标记为完成
+    this.completeTask(id)
+  },
+
+  /**
+   * 标记任务为完成
+   */
+  completeTask(id) {
+    // 生成格子彩纸数据
+    const cellConfetti = this.generateCellConfetti()
+
+    // 更新任务状态
     const tasks = this.data.tasks.map(task => {
       if (task.id === id) {
-        // 切换completed状态，并添加动画标记
-        return { 
-          ...task, 
-          completed: !task.completed, 
+        return {
+          ...task,
+          completed: true,
           animating: true,
-          showConfetti: willComplete,
+          showConfetti: true,
           cellConfetti: cellConfetti
         }
       }
       return task
     })
 
-    // 如果任务被完成（不是取消完成），播放音效
-    if (willComplete) {
-      this.playCompleteSound()
-    }
+    // 清除选中状态
+    this.setData({ selectedTaskId: null })
 
-    // 保存到当前日期的本地存储
+    // 播放完成音效
+    this.playCompleteSound()
+
+    // 保存到本地存储
     const dateKey = this.getCurrentDateKey()
     wx.setStorageSync(dateKey, tasks)
-
-    // 同时更新默认任务模板（保持向后兼容）
     wx.setStorageSync('adhd_tasks', tasks)
 
-    // 更新页面数据，使用回调确保数据更新后再计算进度
+    // 更新页面数据
     this.setData({ tasks }, () => {
-      // 数据更新完成后重新计算进度
       this.calculateProgress()
-      // 保存今日进度到日历，传递更新后的任务列表
       this.saveDailyProgress(tasks)
     })
 
@@ -681,17 +743,56 @@ Page({
     }, 300)
 
     // 1500毫秒后移除彩纸效果
-    if (willComplete) {
-      setTimeout(() => {
-        const updatedTasks = this.data.tasks.map(task => {
-          if (task.id === id) {
-            return { ...task, showConfetti: false, cellConfetti: [] }
-          }
-          return task
-        })
-        this.setData({ tasks: updatedTasks })
-      }, 1500)
-    }
+    setTimeout(() => {
+      const updatedTasks = this.data.tasks.map(task => {
+        if (task.id === id) {
+          return { ...task, showConfetti: false, cellConfetti: [] }
+        }
+        return task
+      })
+      this.setData({ tasks: updatedTasks })
+    }, 1500)
+  },
+
+  /**
+   * 取消任务完成状态
+   */
+  cancelTaskComplete(id) {
+    // 更新任务状态
+    const tasks = this.data.tasks.map(task => {
+      if (task.id === id) {
+        return {
+          ...task,
+          completed: false,
+          animating: true,
+          showConfetti: false,
+          cellConfetti: []
+        }
+      }
+      return task
+    })
+
+    // 保存到本地存储
+    const dateKey = this.getCurrentDateKey()
+    wx.setStorageSync(dateKey, tasks)
+    wx.setStorageSync('adhd_tasks', tasks)
+
+    // 更新页面数据
+    this.setData({ tasks }, () => {
+      this.calculateProgress()
+      this.saveDailyProgress(tasks)
+    })
+
+    // 300毫秒后移除动画标记
+    setTimeout(() => {
+      const updatedTasks = this.data.tasks.map(task => {
+        if (task.id === id) {
+          return { ...task, animating: false }
+        }
+        return task
+      })
+      this.setData({ tasks: updatedTasks })
+    }, 300)
   },
 
   /**
@@ -754,13 +855,15 @@ Page({
    * 重置所有任务的完成状态
    */
   resetAll() {
-    // 将所有任务的completed设为false
+    // 将所有任务的completed设为false，并清除彩带效果
     const tasks = this.data.tasks.map(task => ({
       ...task,
-      completed: false
+      completed: false,
+      showConfetti: false,
+      cellConfetti: []
     }))
 
-    this.setData({ tasks })
+    this.setData({ tasks, selectedTaskId: null })
 
     // 保存到当前日期的存储
     const dateKey = this.getCurrentDateKey()
@@ -804,6 +907,67 @@ Page({
     const dateParam = selectedDate ? `?date=${selectedDate}` : ''
     wx.navigateTo({
       url: `/pages/tasks/tasks${dateParam}`
+    })
+  },
+
+  /**
+   * 跳转到统计页面
+   */
+  goToStats() {
+    wx.navigateTo({
+      url: '/pages/stats/stats'
+    })
+  },
+
+  /**
+   * 选择格子布局大小
+   */
+  selectGridSize(e) {
+    const size = parseInt(e.currentTarget.dataset.size)
+    const { tasks, gridSize } = this.data
+
+    // 如果选择的布局与当前相同，不做处理
+    if (size === gridSize) {
+      return
+    }
+
+    const maxTasks = size * size
+    const currentTaskCount = tasks.length
+
+    // 如果当前任务数量超过新布局的格子数，提示用户
+    if (currentTaskCount > maxTasks) {
+      wx.showModal({
+        title: '提示',
+        content: `当前有${currentTaskCount}个任务，${size}×${size}布局最多只能显示${maxTasks}个任务，超出部分将被隐藏，是否继续？`,
+        success: (res) => {
+          if (res.confirm) {
+            this.applyGridSize(size)
+          }
+        }
+      })
+    } else {
+      this.applyGridSize(size)
+    }
+  },
+
+  /**
+   * 应用格子布局大小
+   */
+  applyGridSize(size) {
+    const { tasks } = this.data
+    const totalCells = size * size
+    const taskCount = tasks.length
+
+    // 计算空格子数量
+    const emptyCount = Math.max(0, totalCells - taskCount)
+    const emptyCells = new Array(emptyCount).fill(0).map((_, i) => i)
+
+    wx.setStorageSync('grid_size', size)
+    this.setData({ gridSize: size, emptyCells: emptyCells })
+    this.calculateProgress()
+    wx.showToast({
+      title: '切换成功',
+      icon: 'success'
     })
   },
 
@@ -1315,13 +1479,13 @@ Page({
         completed: false,
         color: taskColors[index % taskColors.length]
       }))
-      
+
       // 保存恢复的任务
       wx.setStorageSync('adhd_tasks', tasks)
-      
+
       // 加载恢复的任务
       this.loadTasks()
-      
+
       wx.showToast({
         title: `成功恢复 ${tasks.length} 个任务`,
         icon: 'success'
@@ -1332,5 +1496,223 @@ Page({
         icon: 'none'
       })
     }
+  },
+
+  /**
+   * 显示新增任务弹窗
+   */
+  showAddTaskModal() {
+    this.setData({
+      showAddTaskModal: true,
+      newTaskName: '',
+      selectedColor: '#E8F4FD'
+    })
+  },
+
+  /**
+   * 隐藏新增任务弹窗
+   */
+  hideAddTaskModal() {
+    this.setData({
+      showAddTaskModal: false,
+      newTaskName: ''
+    })
+  },
+
+  /**
+   * 监听新任务输入
+   */
+  onNewTaskInput(e) {
+    this.setData({
+      newTaskName: e.detail.value
+    })
+  },
+
+  /**
+   * 选择颜色
+   */
+  selectColor(e) {
+    const color = e.currentTarget.dataset.color
+    this.setData({
+      selectedColor: color
+    })
+  },
+
+  /**
+   * 确认创建任务
+   */
+  confirmAddTask() {
+    const { newTaskName, tasks, gridSize } = this.data
+
+    if (!newTaskName || !newTaskName.trim()) {
+      wx.showToast({
+        title: '请输入任务名称',
+        icon: 'none'
+      })
+      return
+    }
+
+    const taskName = newTaskName.trim()
+    const totalCells = gridSize * gridSize
+
+    // 检查是否已达到最大任务数
+    if (tasks.length >= totalCells) {
+      wx.showToast({
+        title: '任务数量已达上限',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 随机选择一个颜色
+    const colorOptions = ['#E8F4FD', '#E8F8F0', '#FFF8E7', '#F0E8F8', '#FCE8F0', '#FFF0E8', '#E8F0F8', '#F0F8E8']
+    const randomColor = colorOptions[Math.floor(Math.random() * colorOptions.length)]
+
+    // 获取文字颜色
+    const textColor = this.getTextColor(randomColor)
+
+    // 创建新任务
+    const newTask = {
+      id: Date.now(),
+      name: taskName,
+      color: randomColor,
+      textColor: textColor,
+      completed: false,
+      groupId: 'default',
+      groupName: '默认分组'
+    }
+
+    // 添加到当前显示的任务列表
+    const updatedTasks = [...tasks, newTask]
+
+    // 关键：从 adhd_tasks 读取完整的任务列表（包含所有分组），然后添加新任务
+    // 这样可以避免覆盖其他分组（如"我的日常"）中的任务
+    const allTasks = wx.getStorageSync('adhd_tasks') || []
+    const updatedAllTasks = [...allTasks, newTask]
+
+    // 保存完整的任务列表到 adhd_tasks
+    wx.setStorageSync('adhd_tasks', updatedAllTasks)
+
+    // 同时保存到当前日期的任务存储中
+    const dateKey = this.getCurrentDateKey()
+    wx.setStorageSync(dateKey, updatedTasks)
+
+    // 自动选中新创建的任务，确保在任务管理页面中显示为已选中
+    const selectedTaskIds = wx.getStorageSync('selected_task_ids') || []
+    const updatedSelectedIds = [...selectedTaskIds, newTask.id]
+    wx.setStorageSync('selected_task_ids', updatedSelectedIds)
+
+    // 计算新的空格子数量
+    const emptyCount = Math.max(0, totalCells - updatedTasks.length)
+    const emptyCells = new Array(emptyCount).fill(0).map((_, i) => i)
+
+    // 更新页面数据
+    this.setData({
+      tasks: updatedTasks,
+      emptyCells: emptyCells,
+      showAddTaskModal: false,
+      newTaskName: ''
+    }, () => {
+      this.calculateProgress()
+    })
+
+    wx.showToast({
+      title: '创建成功',
+      icon: 'success'
+    })
+  },
+
+  /**
+   * 阻止事件冒泡
+   */
+  preventHide() {
+    // 阻止事件冒泡，防止点击弹窗内容时关闭弹窗
+  },
+
+  // ========== 布局下拉菜单功能 ==========
+
+  /**
+   * 显示布局下拉菜单
+   */
+  showLayoutDropdown() {
+    this.setData({
+      showLayoutDropdown: true
+    })
+  },
+
+  /**
+   * 隐藏布局下拉菜单
+   */
+  hideLayoutDropdown() {
+    this.setData({
+      showLayoutDropdown: false
+    })
+  },
+
+  /**
+   * 选择格子布局大小（从下拉菜单）
+   */
+  selectGridSize(e) {
+    const size = parseInt(e.currentTarget.dataset.size)
+    const { tasks, gridSize } = this.data
+
+    // 如果选择的布局与当前相同，只关闭菜单
+    if (size === gridSize) {
+      this.setData({ showLayoutDropdown: false })
+      return
+    }
+
+    const maxTasks = size * size
+    const currentTaskCount = tasks.length
+
+    // 如果当前任务数量超过新布局的格子数，提示用户
+    if (currentTaskCount > maxTasks) {
+      wx.showModal({
+        title: '提示',
+        content: `当前有${currentTaskCount}个任务，${size}×${size}布局最多只能显示${maxTasks}个任务，超出部分将被隐藏，是否继续？`,
+        success: (res) => {
+          if (res.confirm) {
+            this.applyGridSize(size)
+          }
+          this.setData({ showLayoutDropdown: false })
+        }
+      })
+    } else {
+      this.applyGridSize(size)
+      this.setData({ showLayoutDropdown: false })
+    }
+  },
+
+  // ========== 登录功能 ==========
+
+  /**
+   * 跳转到登录页面
+   */
+  goToLogin() {
+    wx.navigateTo({
+      url: '/pages/login/login'
+    })
+  },
+
+  /**
+   * 显示更多菜单
+   */
+  showMoreMenu() {
+    wx.showActionSheet({
+      itemList: ['日历', '设置', '关于'],
+      success: (res) => {
+        switch (res.tapIndex) {
+          case 0:
+            this.showCalendar()
+            break
+          case 1:
+            wx.showToast({ title: '设置功能开发中', icon: 'none' })
+            break
+          case 2:
+            wx.showToast({ title: '多巴胺格子 v1.0', icon: 'none' })
+            break
+        }
+      }
+    })
   }
 })

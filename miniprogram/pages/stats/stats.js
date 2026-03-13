@@ -1,20 +1,17 @@
 // pages/stats/stats.js
 Page({
   data: {
-    // 当前选中的日期
-    selectedDate: '',
-    currentDateText: '',
-    isToday: true,
-    // 统计数据
-    todayStats: {
-      total: 0,
-      completed: 0,
-      pending: 0,
-      percentage: 0
-    },
-    colorStats: [],
-    streakDays: 0,
-    dailyQuote: '',
+    // 当前选中的周起始日期
+    weekStartDate: '',
+    weekEndDate: '',
+    weekRangeText: '',
+    isCurrentWeek: true,
+    // 星期数据
+    weekDays: [],
+    // 热力图任务数据
+    heatmapTasks: [],
+    // 任务排行榜
+    taskRankings: [],
     // 日历弹窗
     showCalendarModal: false,
     calendarYear: 2026,
@@ -24,214 +21,216 @@ Page({
   },
 
   onLoad() {
-    // 初始化选中今天
-    this.initDate()
-    this.loadQuote()
+    // 初始化当前周
+    this.initCurrentWeek()
   },
 
   onShow() {
-    // 刷新当前日期的数据
-    this.loadStats()
-    this.loadStreak()
+    // 刷新数据
+    this.loadHeatmapData()
+    this.loadTaskRankings()
   },
 
-  // 初始化日期
-  initDate() {
+  // 初始化当前周
+  initCurrentWeek() {
     const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    const today = `${year}-${month}-${day}`
+    const dayOfWeek = now.getDay() // 0是周日
+    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // 调整到周一
     
-    this.setData({
-      selectedDate: today,
-      currentDateText: '今天',
-      isToday: true,
-      calendarYear: year,
-      calendarMonth: now.getMonth() + 1
-    })
+    const monday = new Date(now)
+    monday.setDate(diff)
+    monday.setHours(0, 0, 0, 0)
     
-    this.loadStats()
-    this.loadStreak()
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    
+    this.setWeekData(monday, sunday)
   },
 
-  loadStats() {
-    const { selectedDate, isToday } = this.data
+  // 设置周数据
+  setWeekData(monday, sunday) {
+    const weekStart = this.formatDate(monday)
+    const weekEnd = this.formatDate(sunday)
     
-    let tasks
-    if (isToday) {
-      // 今天使用当前任务列表
-      tasks = wx.getStorageSync('adhd_tasks') || []
-    } else {
-      // 历史日期使用存储的每日数据
-      const dailyData = wx.getStorageSync(`daily_${selectedDate}`) || { tasks: [] }
-      tasks = dailyData.tasks || []
-    }
+    // 检查是否是当前周
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const isCurrentWeek = sunday >= today && monday <= today
     
-    const completed = tasks.filter(t => t.completed).length
-    const total = tasks.length
-    const pending = total - completed
-    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
-
-    this.setData({
-      todayStats: {
-        total,
-        completed,
-        pending,
-        percentage
-      }
-    })
-
-    this.calculateColorStats(tasks)
-  },
-
-  calculateColorStats(tasks) {
-    const colorMap = {
-      '#E3F2FD': '学习类',
-      '#F3E5F5': '休闲类',
-      '#FFF3E0': '健康类',
-      '#E8F5E9': '生活类',
-      '#FCE4EC': '娱乐类',
-      '#E8F4FD': '学习类',
-      '#E8F8F0': '健康类',
-      '#FFF8E7': '生活类',
-      '#F0E8F8': '休闲类',
-      '#FCE8F0': '娱乐类',
-      '#FFF0E8': '其他',
-      '#E8F0F8': '学习类',
-      '#F0F8E8': '健康类'
-    }
-
-    const colorCount = {}
-    tasks.forEach(task => {
-      if (!colorCount[task.color]) {
-        colorCount[task.color] = {
-          color: task.color,
-          name: colorMap[task.color] || '其他',
-          count: 0,
-          taskNames: []
-        }
-      }
-      colorCount[task.color].count++
-      colorCount[task.color].taskNames.push(task.name)
-    })
-
-    const colorStats = Object.values(colorCount).map(item => ({
-      ...item,
-      percentage: tasks.length > 0 ? Math.round((item.count / tasks.length) * 100) : 0,
-      taskNamesText: item.taskNames.join(' · ')
-    }))
-
-    this.setData({ colorStats })
-  },
-
-  loadStreak() {
-    // 从本地存储读取连续完成天数
-    const streakData = wx.getStorageSync('streak_data') || {
-      currentStreak: 0,
-      lastCompletedDate: null
-    }
-
-    const today = new Date().toDateString()
-    const yesterday = new Date(Date.now() - 86400000).toDateString()
-
-    // 检查今天是否已完成所有任务
-    const tasks = wx.getStorageSync('adhd_tasks') || []
-    const allCompleted = tasks.length > 0 && tasks.every(t => t.completed)
-
-    let currentStreak = streakData.currentStreak || 0
-
-    if (allCompleted) {
-      if (streakData.lastCompletedDate === yesterday) {
-        // 昨天完成了，今天也完成了，连续天数+1
-        currentStreak++
-      } else if (streakData.lastCompletedDate !== today) {
-        // 之前没完成，从今天开始
-        currentStreak = 1
-      }
-
-      // 更新存储
-      wx.setStorageSync('streak_data', {
-        currentStreak,
-        lastCompletedDate: today
+    // 生成周范围文本 (格式: 03-09 - 03-15)
+    const startMonth = monday.getMonth() + 1
+    const startDay = monday.getDate()
+    const endMonth = sunday.getMonth() + 1
+    const endDay = sunday.getDate()
+    
+    const weekRangeText = `${String(startMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')} - ${String(endMonth).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`
+    
+    // 生成星期数据
+    const weekDays = []
+    const dayNames = ['一', '二', '三', '四', '五', '六', '日']
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday)
+      date.setDate(monday.getDate() + i)
+      const isToday = this.isSameDay(date, today)
+      weekDays.push({
+        name: dayNames[i],
+        date: `${date.getMonth() + 1}/${date.getDate()}`,
+        fullDate: this.formatDate(date),
+        isToday
       })
     }
-
-    this.setData({ streakDays: currentStreak })
-  },
-
-  loadQuote() {
-    const quotes = [
-      '每一个小步骤都是向前的进步 🌟',
-      'ADHD不是你的缺陷，是你的超能力 ✨',
-      '完成比完美更重要！🎯',
-      '今天也是充满活力的一天！🌈',
-      '相信自己，你可以做到！💪',
-      '小成就累积成大成功 📈',
-      '保持节奏，不要给自己太大压力 🧘',
-      '你已经做得很好了！🌟',
-      '每一天都是新的开始 🌅',
-      '为自己的每一点进步喝彩 🎉'
-    ]
-
-    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)]
-    this.setData({ dailyQuote: randomQuote })
-  },
-
-  // ========== 日期切换功能 ==========
-  
-  // 切换到前一天
-  onPrevDate() {
-    const { selectedDate } = this.data
-    const date = new Date(selectedDate)
-    date.setDate(date.getDate() - 1)
-    this.changeDate(date)
-  },
-
-  // 切换到后一天
-  onNextDate() {
-    const { selectedDate, isToday } = this.data
-    if (isToday) return // 今天之后不能切换
     
-    const date = new Date(selectedDate)
-    date.setDate(date.getDate() + 1)
-    this.changeDate(date)
+    this.setData({
+      weekStartDate: weekStart,
+      weekEndDate: weekEnd,
+      weekRangeText,
+      isCurrentWeek,
+      weekDays,
+      calendarYear: monday.getFullYear(),
+      calendarMonth: monday.getMonth() + 1
+    })
   },
 
-  // 改变日期
-  changeDate(date) {
+  // 切换到上一周
+  onPrevWeek() {
+    const monday = new Date(this.data.weekStartDate)
+    monday.setDate(monday.getDate() - 7)
+    
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    
+    this.setWeekData(monday, sunday)
+    this.loadHeatmapData()
+  },
+
+  // 切换到下一周
+  onNextWeek() {
+    if (this.data.isCurrentWeek) return
+    
+    const monday = new Date(this.data.weekStartDate)
+    monday.setDate(monday.getDate() + 7)
+    
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    
+    this.setWeekData(monday, sunday)
+    this.loadHeatmapData()
+  },
+
+  // 加载热力图数据
+  loadHeatmapData() {
+    // 获取所有任务（从默认任务模板）
+    const defaultTasks = wx.getStorageSync('adhd_tasks') || []
+    
+    if (defaultTasks.length === 0) {
+      this.setData({ heatmapTasks: [] })
+      return
+    }
+    
+    const { weekDays } = this.data
+    const heatmapTasks = defaultTasks.map(task => {
+      const weekStatus = weekDays.map(day => {
+        // 获取该日期的任务数据
+        const dateKey = `tasks_${day.fullDate}`
+        const dailyTasks = wx.getStorageSync(dateKey) || []
+        const dailyTask = dailyTasks.find(t => t.id === task.id)
+        
+        // 判断是否是未来日期
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const checkDate = new Date(day.fullDate)
+        const isFuture = checkDate > today
+        
+        return {
+          completed: dailyTask ? dailyTask.completed : false,
+          isFuture
+        }
+      })
+      
+      return {
+        id: task.id,
+        name: task.name,
+        color: task.color,
+        weekStatus
+      }
+    })
+    
+    this.setData({ heatmapTasks })
+  },
+
+  // 加载任务排行榜
+  loadTaskRankings() {
+    // 获取所有任务
+    const defaultTasks = wx.getStorageSync('adhd_tasks') || []
+    
+    if (defaultTasks.length === 0) {
+      this.setData({ taskRankings: [] })
+      return
+    }
+    
+    // 获取所有日期的打卡数据
+    const taskStats = defaultTasks.map(task => {
+      let total = 0
+      let streak = 0
+      let currentStreak = 0
+      
+      // 遍历最近30天的数据
+      const today = new Date()
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(today)
+        date.setDate(date.getDate() - i)
+        const dateStr = this.formatDate(date)
+        const dateKey = `tasks_${dateStr}`
+        const dailyTasks = wx.getStorageSync(dateKey) || []
+        const dailyTask = dailyTasks.find(t => t.id === task.id)
+        
+        if (dailyTask && dailyTask.completed) {
+          total++
+          if (i === currentStreak) {
+            currentStreak++
+          }
+        }
+      }
+      
+      return {
+        id: task.id,
+        name: task.name,
+        color: task.color,
+        total,
+        streak: currentStreak
+      }
+    })
+    
+    // 按总次数排序
+    taskStats.sort((a, b) => b.total - a.total)
+    
+    // 计算百分比
+    const maxTotal = Math.max(...taskStats.map(t => t.total), 1)
+    const taskRankings = taskStats.map(task => ({
+      ...task,
+      percentage: (task.total / maxTotal) * 100
+    }))
+    
+    this.setData({ taskRankings })
+  },
+
+  // 格式化日期
+  formatDate(date) {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
-    const dateStr = `${year}-${month}-${day}`
-    
-    // 检查是否是今天
-    const today = new Date()
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-    const isToday = dateStr === todayStr
-    
-    // 格式化日期显示
-    let dateText
-    if (isToday) {
-      dateText = '今天'
-    } else if (dateStr === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate() - 1).padStart(2, '0')}`) {
-      dateText = '昨天'
-    } else {
-      dateText = `${month}月${day}日`
-    }
-    
-    this.setData({
-      selectedDate: dateStr,
-      currentDateText: dateText,
-      isToday,
-      calendarYear: year,
-      calendarMonth: date.getMonth() + 1
-    })
-    
-    this.loadStats()
-    this.loadStreak()
+    return `${year}-${month}-${day}`
   },
 
+  // 判断是否是同一天
+  isSameDay(date1, date2) {
+    return date1.getFullYear() === date2.getFullYear() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getDate() === date2.getDate()
+  },
+
+  // ========== 日历弹窗功能 ==========
+  
   // 打开日历选择器
   onSelectDate() {
     this.setData({ showCalendarModal: true })
@@ -250,7 +249,7 @@ Page({
 
   // 生成日历天数
   generateCalendarDays() {
-    const { calendarYear, calendarMonth, selectedDate } = this.data
+    const { calendarYear, calendarMonth, weekStartDate } = this.data
     const days = []
     const firstDay = new Date(calendarYear, calendarMonth - 1, 1)
     const lastDay = new Date(calendarYear, calendarMonth, 0)
@@ -262,26 +261,26 @@ Page({
 
     // 获取今天的日期
     const now = new Date()
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const todayStr = this.formatDate(now)
 
     // 上个月的日期
     for (let i = firstDayWeek - 1; i >= 0; i--) {
       const day = prevTotalDays - i
       const date = new Date(calendarYear, calendarMonth - 2, day)
-      days.push(this.createDayObject(date, false, todayStr, selectedDate))
+      days.push(this.createDayObject(date, false, todayStr, weekStartDate))
     }
 
     // 当前月的日期
     for (let i = 1; i <= totalDays; i++) {
       const date = new Date(calendarYear, calendarMonth - 1, i)
-      days.push(this.createDayObject(date, true, todayStr, selectedDate))
+      days.push(this.createDayObject(date, true, todayStr, weekStartDate))
     }
 
     // 下个月的日期（补满42个格子，6行7列）
     const remaining = 42 - days.length
     for (let i = 1; i <= remaining; i++) {
       const date = new Date(calendarYear, calendarMonth, i)
-      days.push(this.createDayObject(date, false, todayStr, selectedDate))
+      days.push(this.createDayObject(date, false, todayStr, weekStartDate))
     }
 
     this.setData({ calendarDays: days })
@@ -289,16 +288,14 @@ Page({
 
   // 创建日期对象
   createDayObject(date, isCurrentMonth, todayStr, selectedDate) {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const fullDate = `${year}-${month}-${day}`
+    const fullDate = this.formatDate(date)
     
     // 检查是否有数据
-    const dailyData = wx.getStorageSync(`daily_${fullDate}`)
-    const hasData = dailyData && dailyData.tasks && dailyData.tasks.length > 0
-    const completedCount = hasData ? dailyData.tasks.filter(t => t.completed).length : 0
-    const totalCount = hasData ? dailyData.tasks.length : 0
+    const dateKey = `tasks_${fullDate}`
+    const dailyTasks = wx.getStorageSync(dateKey) || []
+    const hasData = dailyTasks.length > 0
+    const completedCount = dailyTasks.filter(t => t.completed).length
+    const totalCount = dailyTasks.length
     
     // 根据完成度设置颜色
     let dotColor = '#E0E0E0'
@@ -353,16 +350,29 @@ Page({
 
   // 选择日期
   onDaySelect(e) {
-    const { date, istoday } = e.currentTarget.dataset
-    const dateObj = new Date(date)
-    this.changeDate(dateObj)
+    const { date } = e.currentTarget.dataset
+    const selectedDate = new Date(date)
+    
+    // 计算该日期所在周的周一
+    const dayOfWeek = selectedDate.getDay()
+    const diff = selectedDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)
+    
+    const monday = new Date(selectedDate)
+    monday.setDate(diff)
+    monday.setHours(0, 0, 0, 0)
+    
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    
+    this.setWeekData(monday, sunday)
     this.setData({ showCalendarModal: false })
+    this.loadHeatmapData()
   },
 
   // 选择今天
   onSelectToday() {
-    const today = new Date()
-    this.changeDate(today)
+    this.initCurrentWeek()
     this.setData({ showCalendarModal: false })
+    this.loadHeatmapData()
   }
 })
