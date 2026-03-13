@@ -81,6 +81,8 @@ Page({
   onLoad() {
     // 更新日期显示
     this.updateDate()
+    // 检查是否需要重置任务状态（新的一天）
+    this.checkAndResetDailyTasks()
     // 先加载格子布局设置，再加载任务列表
     // 确保 gridSize 在计算进度前已经加载
     this.loadGridSize()
@@ -92,6 +94,8 @@ Page({
    * 每次打开页面或从其他页面返回时执行
    */
   onShow() {
+    // 检查是否需要重置任务状态（新的一天）
+    this.checkAndResetDailyTasks()
     // 重新加载布局设置（可能在任务页面修改了）
     this.loadGridSize()
     // 加载当前选中日期的任务（可能是今天或其他日期）
@@ -116,6 +120,58 @@ Page({
         isLoggedIn: false
       })
     }
+  },
+
+  /**
+   * 检查并重置每日任务状态
+   * 如果上次访问日期不是今天，则将任务状态重置为未完成
+   */
+  checkAndResetDailyTasks() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const today = `${year}-${month}-${day}`
+
+    // 获取上次访问日期
+    const lastVisitDate = wx.getStorageSync('last_visit_date')
+
+    // 如果上次访问日期不是今天，说明是新的一天，需要重置任务状态
+    if (lastVisitDate && lastVisitDate !== today) {
+      console.log('新的一天，自动重置任务状态:', lastVisitDate, '->', today)
+      this.resetAllTasksToDefault()
+    }
+
+    // 更新上次访问日期为今天
+    wx.setStorageSync('last_visit_date', today)
+  },
+
+  /**
+   * 重置所有任务为默认状态（未完成）
+   */
+  resetAllTasksToDefault() {
+    // 获取默认任务模板
+    let tasks = wx.getStorageSync('adhd_tasks') || []
+
+    // 将所有任务的 completed 设为 false
+    tasks = tasks.map(task => ({
+      ...task,
+      completed: false
+    }))
+
+    // 保存到默认任务模板
+    wx.setStorageSync('adhd_tasks', tasks)
+
+    // 保存到今天的任务存储中
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const today = `${year}-${month}-${day}`
+    const todayKey = `tasks_${today}`
+    wx.setStorageSync(todayKey, tasks)
+
+    console.log('任务状态已重置为默认状态')
   },
 
   /**
