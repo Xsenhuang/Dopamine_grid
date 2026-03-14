@@ -284,12 +284,15 @@
   margin-bottom: 12rpx;
 }
 
-/* 体验模式按钮 */
-.guest-actions {
-  padding: 0 40rpx;
+/* 微信登录区域 */
+.wechat-login-section {
+  margin-bottom: 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.back-home-btn {
+.wechat-login-btn {
   width: 100%;
   height: 100rpx;
   background: linear-gradient(135deg, #07C160 0%, #05a350 100%);
@@ -297,8 +300,53 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 16rpx;
   border: none;
   box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.3);
+  margin-bottom: 16rpx;
+}
+
+.wechat-login-btn::after {
+  border: none;
+}
+
+.wechat-login-btn:active {
+  transform: scale(0.98);
+}
+
+.wechat-login-btn .btn-text {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #fff;
+}
+
+.wechat-icon {
+  font-size: 40rpx;
+}
+
+.login-hint {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 体验模式按钮 */
+.guest-actions {
+  padding: 0 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.back-home-btn {
+  width: 100%;
+  height: 100rpx;
+  background: #fff;
+  border-radius: 50rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid #E5E5E5;
+  margin-bottom: 16rpx;
 }
 
 .back-home-btn::after {
@@ -306,13 +354,19 @@
 }
 
 .back-home-btn:active {
+  background: #F5F5F5;
   transform: scale(0.98);
 }
 
 .back-home-btn .btn-text {
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 500;
-  color: #fff;
+  color: #666;
+}
+
+.guest-hint {
+  font-size: 24rpx;
+  color: #999;
 }
 
 /* ========== 已登录状态 ========== */

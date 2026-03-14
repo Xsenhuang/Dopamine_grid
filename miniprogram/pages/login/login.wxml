@@ -34,10 +34,27 @@
         </view>
         -->
 
+        <!-- 微信一键登录 -->
+        <view class="wechat-login-section">
+          <button class="wechat-login-btn" bindtap="onWechatLogin">
+            <text class="wechat-icon">💚</text>
+            <text class="btn-text">微信一键登录</text>
+          </button>
+          <text class="login-hint">使用微信身份快速开始</text>
+        </view>
+
+        <!-- 分割线 -->
+        <view class="divider">
+          <view class="divider-line"></view>
+          <text class="divider-text">或</text>
+          <view class="divider-line"></view>
+        </view>
+
         <view class="guest-actions">
           <button class="back-home-btn" bindtap="goBack">
-            <text class="btn-text">开始体验</text>
+            <text class="btn-text">暂不登录，直接体验</text>
           </button>
+          <text class="guest-hint">部分功能可能需要登录后使用</text>
         </view>
       </view>
     </block>

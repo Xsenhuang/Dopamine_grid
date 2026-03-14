@@ -26,14 +26,10 @@ Page({
    * 生命周期函数--监听页面加载
    */
   onLoad() {
-    // 初始化云开发
+    // 云开发在 app.js 中已初始化，这里不需要重复初始化
+    // 如果需要使用云能力，确保 wx.cloud 可用
     if (!wx.cloud) {
       console.error('请使用 2.2.3 或以上的基础库以使用云能力')
-    } else {
-      wx.cloud.init({
-        env: '你的云开发环境ID', // 替换为你的云开发环境ID
-        traceUser: true
-      })
     }
     
     // 检查是否已登录
