@@ -128,6 +128,12 @@
   color: white;
 }
 
+.action-btn.danger {
+  background: #EF5350;
+  border: none;
+  color: white;
+}
+
 /* 布局分配卡片 */
 .layout-card {
   background: white;

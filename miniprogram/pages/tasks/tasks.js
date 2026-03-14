@@ -32,7 +32,7 @@ Page({
       '#F0F8E8': '#558B2F'  // 浅薄荷 -> 深薄荷
     },
     // 当前格子布局大小
-    gridSize: 5,
+    gridSize: 3,
     // 可选的格子布局选项
     gridOptions: [3, 4, 5, 6],
     // 已选中的任务ID列表
@@ -142,6 +142,7 @@ Page({
    */
   onShow() {
     this.loadTasks()
+    this.loadGridSize()
     this.loadSelectedTasks()
     // 从当天任务存储同步选中状态
     this.syncSelectedTasksFromDaily()
@@ -228,7 +229,7 @@ Page({
    * 从本地存储加载格子布局设置
    */
   loadGridSize() {
-    const gridSize = wx.getStorageSync('grid_size') || 5
+    const gridSize = wx.getStorageSync('grid_size') || 3
     this.setData({ gridSize })
   },
 
@@ -246,33 +247,54 @@ Page({
    * 当 selected_task_ids 为空但当天有任务时，将当天任务设为选中
    */
   syncSelectedTasksFromDaily() {
-    const { currentDate } = this.data
+    const { currentDate, gridSize } = this.data
     const dateKey = currentDate ? `tasks_${currentDate}` : `tasks_${this.getTodayDate()}`
     
     // 获取当天的任务
     const dailyTasks = wx.getStorageSync(dateKey) || []
-    console.log('syncSelectedTasksFromDaily:', { dateKey, dailyTasksCount: dailyTasks.length })
+    console.log('syncSelectedTasksFromDaily:', { dateKey, dailyTasksCount: dailyTasks.length, gridSize })
     
     if (dailyTasks.length > 0) {
-      // 获取当前选中的任务ID
-      let selectedTaskIds = wx.getStorageSync('selected_task_ids') || []
+      // 获取当前选中的任务ID（统一转为数字类型）
+      let selectedTaskIds = (wx.getStorageSync('selected_task_ids') || []).map(id => Number(id))
+      const dailyTaskIds = dailyTasks.map(t => Number(t.id))
       
-      // 如果当前没有选中的任务，或者需要同步
-      // 将当天任务的ID设为选中
-      const dailyTaskIds = dailyTasks.map(t => t.id)
+      // 计算当前布局的最大格子数
+      const maxCells = gridSize * gridSize
       
-      // 合并现有选中ID和当天任务ID（去重）
-      const mergedIds = [...new Set([...selectedTaskIds, ...dailyTaskIds])]
+      // 检查当天显示的任务是否都已经包含在 selectedTaskIds 中
+      const allDailyTasksSelected = dailyTaskIds.every(id => selectedTaskIds.includes(id))
       
-      console.log('Syncing selected tasks:', { 
-        previousSelected: selectedTaskIds, 
-        dailyTaskIds, 
-        mergedIds 
-      })
+      // 检查是否有选中了但不在当天显示任务中的（即多余选中的）
+      const hasExtraSelected = selectedTaskIds.some(id => !dailyTaskIds.includes(id))
       
-      // 保存到存储
-      this.saveSelectedTaskIds(mergedIds)
-      this.setData({ selectedTaskIds: mergedIds })
+      // 检查选中数量是否超过当前布局限制
+      const exceedsLimit = selectedTaskIds.length > maxCells
+      
+      // 需要同步的情况：
+      // 1. selectedTaskIds 为空
+      // 2. 当天有任务未被选中
+      // 3. 有选中了但不在当天显示任务中的（多余选中的）
+      // 4. 选中数量超过当前布局限制
+      if (selectedTaskIds.length === 0 || !allDailyTasksSelected || hasExtraSelected || exceedsLimit) {
+        // 只保留当天显示的任务ID作为选中状态，且不超过布局限制
+        let newSelectedIds = dailyTaskIds.slice(0, maxCells)
+        
+        console.log('Syncing selected tasks:', { 
+          previousSelected: selectedTaskIds, 
+          dailyTaskIds, 
+          newSelectedIds,
+          hasExtraSelected,
+          exceedsLimit,
+          maxCells
+        })
+        
+        // 保存到存储
+        this.saveSelectedTaskIds(newSelectedIds)
+        this.setData({ selectedTaskIds: newSelectedIds })
+      } else {
+        console.log('当天任务已都在选中列表中，无需同步')
+      }
     }
   },
 
@@ -791,14 +813,14 @@ Page({
    */
   applySelection() {
     const { selectedTaskIds, tasks, currentDate, defaultTasks, groupedTasks } = this.data
-    
+
     console.log('applySelection called')
     console.log('currentDate:', currentDate)
     console.log('selectedTaskIds:', selectedTaskIds)
     console.log('tasks count:', tasks.length)
     console.log('defaultTasks count:', defaultTasks.length)
     console.log('groupedTasks count:', groupedTasks.length)
-    
+
     // 合并所有显示的任务（defaultTasks + groupedTasks 中的所有任务）
     const allDisplayTasks = [...defaultTasks]
     groupedTasks.forEach(group => {
@@ -806,8 +828,9 @@ Page({
     })
     console.log('allDisplayTasks count:', allDisplayTasks.length)
 
-    // 获取选中的任务（使用 selected 属性）
-    const selectedTasks = allDisplayTasks.filter(t => t.selected)
+    // 获取选中的任务（使用 selectedTaskIds，与 autoApplySelection 保持一致）
+    const selectedTaskIdSet = new Set(selectedTaskIds.map(id => Number(id)))
+    const selectedTasks = tasks.filter(t => selectedTaskIdSet.has(Number(t.id)))
     console.log('selectedTasks count:', selectedTasks.length)
     console.log('selectedTasks:', selectedTasks.map(t => ({ id: t.id, name: t.name })))
 
@@ -847,10 +870,9 @@ Page({
     wx.setStorageSync('adhd_tasks', allTasksToSave)
     console.log(`已保存 ${allTasksToSave.length} 个任务到 adhd_tasks`)
 
-    // 保存选中的任务ID列表
-    const selectedTaskIdsToSave = selectedTasks.map(t => t.id)
-    this.saveSelectedTaskIds(selectedTaskIdsToSave)
-    console.log('已保存 selected_task_ids:', selectedTaskIdsToSave)
+    // 保存选中的任务ID列表（直接使用 selectedTaskIds，保持一致性）
+    this.saveSelectedTaskIds(selectedTaskIds)
+    console.log('已保存 selected_task_ids:', selectedTaskIds)
 
     wx.showToast({
       title: '应用成功',
@@ -1288,5 +1310,51 @@ Page({
       })
     })
     this.setData({ inspirationTasks })
+  },
+
+  /**
+   * 清除所有任务（测试用）
+   */
+  clearAllTasks() {
+    wx.showModal({
+      title: '确认清除',
+      content: '这将删除所有任务和分组，确定继续吗？',
+      confirmColor: '#EF5350',
+      success: (res) => {
+        if (res.confirm) {
+          // 清除所有任务相关数据
+          wx.removeStorageSync('adhd_tasks')
+          wx.removeStorageSync('adhd_tasks_backup')
+          wx.removeStorageSync('adhd_tasks_history')
+          wx.removeStorageSync('task_groups')
+          wx.removeStorageSync('task_groups_backup')
+          wx.removeStorageSync('task_groups_history')
+          wx.removeStorageSync('selected_task_ids')
+          wx.removeStorageSync('selected_task_ids_backup')
+
+          // 清除所有日期的任务数据
+          const keys = wx.getStorageInfoSync().keys
+          keys.forEach(key => {
+            if (key.startsWith('tasks_') || key.startsWith('daily_')) {
+              wx.removeStorageSync(key)
+            }
+          })
+
+          // 重置页面数据
+          this.setData({
+            tasks: [],
+            defaultTasks: [],
+            groupedTasks: [],
+            selectedTaskIds: [],
+            savedGroups: []
+          })
+
+          wx.showToast({
+            title: '已清除所有任务',
+            icon: 'success'
+          })
+        }
+      }
+    })
   }
 })

@@ -157,7 +157,7 @@
 
 .dropdown-menu {
   position: absolute;
-  top: 160rpx;
+  top: 100rpx;
   right: 30rpx;
   background: #fff;
   border-radius: 16rpx;

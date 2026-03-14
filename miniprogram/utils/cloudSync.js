@@ -7,7 +7,9 @@ const CLOUD_COLLECTION = 'user_data'
  * 检查是否可以使用云开发
  */
 function isCloudAvailable() {
-  return wx.cloud && wx.cloud.inited
+  // 只要 wx.cloud 存在，就认为云开发可用
+  // wx.cloud.inited 可能不准确，直接尝试使用
+  return typeof wx.cloud !== 'undefined' && wx.cloud !== null
 }
 
 /**
@@ -107,6 +109,44 @@ async function syncFromCloud() {
 }
 
 /**
+ * 创建数据库集合（如果不存在）
+ * 使用云函数创建集合，因为小程序端无法直接创建集合
+ */
+async function createCollectionIfNotExists() {
+  try {
+    const db = wx.cloud.database()
+    // 尝试查询集合，如果不存在会报错
+    await db.collection(CLOUD_COLLECTION).limit(1).get()
+    return true
+  } catch (e) {
+    // 集合不存在，需要创建
+    if (e.errCode === -502005 || e.message.includes('collection not exists')) {
+      console.log('数据库集合不存在，尝试通过云函数创建...')
+      try {
+        // 调用云函数创建集合
+        const { result } = await wx.cloud.callFunction({
+          name: 'initDatabase'
+        })
+        
+        if (result && result.success) {
+          console.log('数据库集合创建成功:', result.message)
+          return true
+        } else {
+          console.error('云函数创建集合失败:', result ? result.message : '未知错误')
+          return false
+        }
+      } catch (createError) {
+        console.error('调用云函数创建集合失败:', createError)
+        // 如果云函数调用失败，提示用户手动创建
+        console.log('请确保已部署 initDatabase 云函数，或在云开发控制台手动创建 user_data 集合')
+        return false
+      }
+    }
+    return false
+  }
+}
+
+/**
  * 将本地数据同步到云端
  * @returns {Promise<boolean>} 是否成功同步
  */
@@ -119,6 +159,13 @@ async function syncToCloud() {
   try {
     const userId = getUserId()
     const db = wx.cloud.database()
+
+    // 确保集合存在
+    const collectionExists = await createCollectionIfNotExists()
+    if (!collectionExists) {
+      console.log('数据库集合不存在且无法自动创建，请在云开发控制台手动创建 user_data 集合')
+      return false
+    }
 
     // 获取本地数据
     const tasks = wx.getStorageSync('adhd_tasks') || []

@@ -9,7 +9,7 @@ Page({
     // 任务列表
     tasks: [],
     // 当前格子布局大小（3、4、5、6）
-    gridSize: 5,
+    gridSize: 3,
     // 当前日期字符串
     currentDate: '',
     // 当前日期显示（年月日格式）
@@ -196,12 +196,18 @@ Page({
   loadTasksForCurrentDate() {
     const dateKey = this.getCurrentDateKey()
     const dateStr = dateKey.replace('tasks_', '')
-    
+
     // 检查是否有该日期的专属任务
     let tasks = wx.getStorageSync(dateKey)
-    
-    if (!tasks || tasks.length === 0) {
-      // 如果没有该日期的任务，尝试从默认任务模板复制
+
+    // 检查是否有选中的任务ID列表（用于判断用户是否主动设置过任务）
+    const selectedTaskIds = wx.getStorageSync('selected_task_ids') || []
+
+    // 只有当该日期没有任务数据时，才从默认模板复制
+    // 注意：如果 tasks 是空数组且 selectedTaskIds 也是空数组，说明用户主动取消了所有任务
+    // 此时不应该从默认模板复制
+    if (!tasks) {
+      // 如果没有该日期的任务存储，尝试从默认任务模板复制
       const defaultTasks = wx.getStorageSync('adhd_tasks') || []
       if (defaultTasks.length > 0) {
         // 复制默认任务作为该日期的初始任务
@@ -210,6 +216,21 @@ Page({
           completed: false
         }))
         // 保存到该日期的存储中
+        wx.setStorageSync(dateKey, tasks)
+      } else {
+        tasks = []
+      }
+    } else if (tasks.length === 0 && selectedTaskIds.length === 0) {
+      // 用户主动取消了所有任务，保持空任务列表
+      tasks = []
+    } else if (tasks.length === 0) {
+      // 任务为空但有选中的任务ID，可能是数据不一致，从默认模板复制
+      const defaultTasks = wx.getStorageSync('adhd_tasks') || []
+      if (defaultTasks.length > 0) {
+        tasks = defaultTasks.map(task => ({
+          ...task,
+          completed: false
+        }))
         wx.setStorageSync(dateKey, tasks)
       } else {
         tasks = []
@@ -302,7 +323,7 @@ Page({
    * 默认使用 5×5 布局
    */
   loadGridSize() {
-    const gridSize = wx.getStorageSync('grid_size') || 5
+    const gridSize = wx.getStorageSync('grid_size') || 3
     this.setData({ gridSize })
   },
 
@@ -1018,6 +1039,41 @@ Page({
     const emptyCount = Math.max(0, totalCells - taskCount)
     const emptyCells = new Array(emptyCount).fill(0).map((_, i) => i)
 
+    // 获取当前选中的任务ID
+    let selectedTaskIds = wx.getStorageSync('selected_task_ids') || []
+    const originalCount = selectedTaskIds.length
+    
+    // 如果选中的任务数量超过新布局的格子数，只保留前 totalCells 个
+    if (selectedTaskIds.length > totalCells) {
+      selectedTaskIds = selectedTaskIds.slice(0, totalCells)
+      wx.setStorageSync('selected_task_ids', selectedTaskIds)
+      console.log(`布局切换为 ${size}×${size}，选中任务从 ${originalCount} 个调整为 ${selectedTaskIds.length} 个`)
+      
+      // 同步更新当天显示的任务列表，只保留选中的任务
+      const dateKey = this.getCurrentDateKey()
+      const allTasks = wx.getStorageSync('adhd_tasks') || []
+      const selectedTaskIdSet = new Set(selectedTaskIds.map(id => Number(id)))
+      const selectedTasks = allTasks.filter(t => selectedTaskIdSet.has(Number(t.id)))
+      
+      // 为每个任务添加对应的文字颜色
+      const tasksWithColor = selectedTasks.map(task => {
+        const textColor = this.getTextColor(task.color)
+        return {
+          ...task,
+          textColor: textColor,
+          showConfetti: false,
+          cellConfetti: []
+        }
+      })
+      
+      // 保存到当天任务存储
+      wx.setStorageSync(dateKey, tasksWithColor)
+      console.log(`已更新当天任务存储，从 ${tasks.length} 个调整为 ${tasksWithColor.length} 个`)
+      
+      // 更新页面显示的任务
+      this.setData({ tasks: tasksWithColor })
+    }
+
     wx.setStorageSync('grid_size', size)
     this.setData({ gridSize: size, emptyCells: emptyCells })
     this.calculateProgress()
@@ -1359,8 +1415,14 @@ Page({
     // 检查是否有该日期的专属任务
     let tasks = wx.getStorageSync(dateKey)
 
-    if (!tasks || tasks.length === 0) {
-      // 如果没有该日期的任务，尝试从默认任务模板复制
+    // 检查是否有选中的任务ID列表（用于判断用户是否主动设置过任务）
+    const selectedTaskIds = wx.getStorageSync('selected_task_ids') || []
+
+    // 只有当该日期没有任务数据时，才从默认模板复制
+    // 注意：如果 tasks 是空数组且 selectedTaskIds 也是空数组，说明用户主动取消了所有任务
+    // 此时不应该从默认模板复制
+    if (!tasks) {
+      // 如果没有该日期的任务存储，尝试从默认任务模板复制
       const defaultTasks = wx.getStorageSync('adhd_tasks') || []
       if (defaultTasks.length > 0) {
         // 复制默认任务作为该日期的初始任务
@@ -1369,6 +1431,21 @@ Page({
           completed: false
         }))
         // 保存到该日期的存储中
+        wx.setStorageSync(dateKey, tasks)
+      } else {
+        tasks = []
+      }
+    } else if (tasks.length === 0 && selectedTaskIds.length === 0) {
+      // 用户主动取消了所有任务，保持空任务列表
+      tasks = []
+    } else if (tasks.length === 0) {
+      // 任务为空但有选中的任务ID，可能是数据不一致，从默认模板复制
+      const defaultTasks = wx.getStorageSync('adhd_tasks') || []
+      if (defaultTasks.length > 0) {
+        tasks = defaultTasks.map(task => ({
+          ...task,
+          completed: false
+        }))
         wx.setStorageSync(dateKey, tasks)
       } else {
         tasks = []
