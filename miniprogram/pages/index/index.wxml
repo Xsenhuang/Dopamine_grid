@@ -18,7 +18,8 @@
     -->
     <!-- 体验模式：只显示标题 -->
     <view class="app-title">
-      <text class="app-name">多巴胺格子</text>
+      <image class="app-icon" src="/assets/images/avatar.png" mode="aspectFit"></image>
+      <text class="app-name">欢迎使用多巴胺打卡</text>
     </view>
     <view class="layout-selector" bindtap="showLayoutDropdown">
       <text class="layout-selector-text">布局 {{gridSize}}×{{gridSize}}</text>

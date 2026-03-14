@@ -170,7 +170,3 @@ page {
 ## 许可证
 
 MIT License
-
-## 致谢
-
-灵感来源于 [ADHD Bingo](https://asterisklake.github.io/ADHD-Bingo/) 网页版
