@@ -15,9 +15,5 @@
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
-  "permission": {
-    "scope.userInfo": {
-      "desc": "用于完善用户资料"
-    }
-  }
+  "lazyCodeLoading": "requiredComponents"
 }

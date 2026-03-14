@@ -44,6 +44,9 @@
       "ignore": [],
       "disablePlugins": [],
       "outputPath": ""
+    },
+    "transpile": {
+      "disableBabelPluginImport": true
     }
   },
   "compileType": "miniprogram",
