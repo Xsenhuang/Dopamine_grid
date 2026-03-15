@@ -52,6 +52,8 @@ Page({
     savedGroups: [],
     // 当前编辑的日期
     currentDate: '',
+    // 当前会话中创建的新分组ID列表
+    sessionCreatedGroups: [],
 
     // 任务灵感弹窗显示状态
     showInspiration: false,
@@ -341,9 +343,11 @@ Page({
       }
     })
 
-    // 添加空分组（从savedGroups中读取但没有任务的分组）
+    // 显示有任务的分组，以及当前会话中创建的新分组（即使为空）
+    const { sessionCreatedGroups } = this.data
     savedGroups.forEach(savedGroup => {
-      if (!groupMap[savedGroup.groupId]) {
+      // 只显示有任务的分组，或者当前会话中创建的新分组
+      if (!groupMap[savedGroup.groupId] && sessionCreatedGroups.includes(savedGroup.groupId)) {
         groupMap[savedGroup.groupId] = {
           groupId: savedGroup.groupId,
           groupName: savedGroup.groupName || '未命名分组',
@@ -981,8 +985,10 @@ Page({
           }
           wx.setStorageSync('task_groups_history', groupHistory)
 
-          // 更新页面数据中的分组列表
-          this.setData({ savedGroups: groups })
+          // 更新页面数据中的分组列表，并记录当前会话创建的分组
+          const sessionCreatedGroups = this.data.sessionCreatedGroups || []
+          sessionCreatedGroups.push(groupId)
+          this.setData({ savedGroups: groups, sessionCreatedGroups })
 
           // 刷新分组列表
           this.computeGroupedTasks()
@@ -1041,7 +1047,7 @@ Page({
           }
 
           // 更新该分组下所有任务的groupName
-          const { tasks } = this.data
+          const { tasks, selectedTaskIds } = this.data
           const updatedTasks = tasks.map(task => {
             if (task.groupId === groupId) {
               return { ...task, groupName: newGroupName }
@@ -1055,6 +1061,9 @@ Page({
 
           // 刷新分组列表
           this.computeGroupedTasks()
+
+          // 自动应用选择，让编辑后的分组信息立即同步到首页
+          this.autoApplySelection(selectedTaskIds)
 
           wx.showToast({
             title: '修改成功',
@@ -1077,7 +1086,7 @@ Page({
    */
   editTask(e) {
     const task = e.currentTarget.dataset.task
-    
+
     wx.showModal({
       title: '编辑任务',
       content: task.name,
@@ -1095,7 +1104,7 @@ Page({
           }
 
           // 更新任务名称
-          const { tasks } = this.data
+          const { tasks, selectedTaskIds } = this.data
           const updatedTasks = tasks.map(t => {
             if (t.id === task.id) {
               return { ...t, name: newName }
@@ -1106,6 +1115,9 @@ Page({
           this.setData({ tasks: updatedTasks })
           this.saveTasks(updatedTasks)
           this.computeGroupedTasks()
+
+          // 自动应用选择，让编辑后的任务立即同步到首页
+          this.autoApplySelection(selectedTaskIds)
 
           wx.showToast({
             title: '修改成功',
@@ -1121,7 +1133,7 @@ Page({
    */
   deleteTask(e) {
     const taskId = parseInt(e.currentTarget.dataset.taskId)
-    
+
     wx.showModal({
       title: '确认删除',
       content: '确定要删除这个任务吗？',
@@ -1131,18 +1143,21 @@ Page({
           // 从任务列表中删除
           const { tasks, selectedTaskIds } = this.data
           const updatedTasks = tasks.filter(t => t.id !== taskId)
-          
+
           // 同时从已选任务中移除
           const updatedSelectedIds = selectedTaskIds.filter(id => id !== taskId)
 
-          this.setData({ 
+          this.setData({
             tasks: updatedTasks,
             selectedTaskIds: updatedSelectedIds
           })
-          
+
           this.saveTasks(updatedTasks)
           this.saveSelectedTaskIds(updatedSelectedIds)
           this.computeGroupedTasks()
+
+          // 自动应用选择，让删除后的任务状态立即同步到首页
+          this.autoApplySelection(updatedSelectedIds)
 
           wx.showToast({
             title: '删除成功',
@@ -1180,7 +1195,7 @@ Page({
           }
 
           // 将该分组下的任务移动到默认分组
-          const { tasks } = this.data
+          const { tasks, selectedTaskIds } = this.data
           const updatedTasks = tasks.map(task => {
             if (task.groupId === groupId) {
               return { ...task, groupId: 'default', groupName: '默认分组' }
@@ -1188,7 +1203,7 @@ Page({
             return task
           })
 
-          this.setData({ 
+          this.setData({
             tasks: updatedTasks,
             savedGroups: updatedGroups
           })
@@ -1196,6 +1211,9 @@ Page({
 
           // 刷新分组列表
           this.computeGroupedTasks()
+
+          // 自动应用选择，让删除分组后的任务状态立即同步到首页
+          this.autoApplySelection(selectedTaskIds)
 
           wx.showToast({
             title: '删除成功',

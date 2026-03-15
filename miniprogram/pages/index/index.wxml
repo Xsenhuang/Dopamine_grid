@@ -43,14 +43,18 @@
   </view>
 
   <!-- 多巴胺格子 -->
-  <view class="card bingo-card">
+  <view class="card bingo-card" style="position: relative;">
+    <!-- 格子完成时的烟花效果容器 - 相对于bingo-card绝对定位 -->
+    <view wx:if="{{activeConfettiCell}}" class="cell-confetti-overlay" style="left: {{activeConfettiCell.centerX}}rpx; top: {{activeConfettiCell.centerY}}rpx;">
+      <view wx:for="{{activeConfettiCell.cellConfetti}}" wx:for-item="dot" wx:key="id" class="firework-dot {{dot.color}}" style="--end-x: {{dot.endX}}rpx; --end-y: {{dot.endY}}rpx; --start-size: {{dot.startSize}}rpx; --end-size: {{dot.endSize}}rpx; animation-delay: {{dot.delay}}s; animation-duration: {{dot.duration}}s;"></view>
+    </view>
     <view class="bingo-grid" style="grid-template-columns: repeat({{gridSize}}, 1fr);">
       <!-- 已有任务的格子 -->
       <view
         wx:for="{{tasks}}"
         wx:for-index="index"
         wx:key="id"
-        class="bingo-cell {{item.completed ? 'completed' : ''}} {{item.animating ? 'pulse' : ''}} {{item.dragging ? 'dragging' : ''}} {{selectedTaskId === item.id ? 'selected' : ''}} {{item.showConfetti ? 'has-confetti' : ''}}"
+        class="bingo-cell {{item.completed ? 'completed' : ''}} {{item.animating ? 'pulse' : ''}} {{item.dragging ? 'dragging' : ''}} {{selectedTaskId === item.id ? 'selected' : ''}}"
         style="background-color: {{item.color}}; display: {{index < gridSize * gridSize ? 'flex' : 'none'}};"
         bindtap="toggleTask"
         data-id="{{item.id}}"
@@ -59,10 +63,6 @@
         bindtouchmove="onDragMove"
         bindtouchend="onDragEnd"
       >
-        <!-- 格子完成时的彩纸效果 -->
-        <view wx:if="{{item.showConfetti}}" class="cell-confetti-container">
-          <view wx:for="{{item.cellConfetti}}" wx:for-item="confetti" wx:key="id" class="cell-confetti {{confetti.shape}} {{confetti.color}} dir-{{confetti.direction}}" style="{{confetti.direction === 'top' || confetti.direction === 'bottom' ? 'left: ' + confetti.position + '%;' : 'top: ' + confetti.position + '%;'}} animation-delay: {{confetti.delay}}s; animation-duration: {{confetti.duration}}s; transform: rotate({{confetti.rotation}}deg);"></view>
-        </view>
         <text class="cell-text" style="color: {{item.completed || selectedTaskId === item.id ? 'white' : (item.textColor || '#666666')}};">{{item.name}}</text>
       </view>
       <!-- 空格子（带加号） -->

@@ -1,6 +1,10 @@
 // pages/index/index.js
 // 首页 - 显示多巴胺格子、计算完成进度、提供操作按钮
 
+// 音效实例
+let completeSound = null
+let bingoSound = null
+
 Page({
   /**
    * 页面的初始数据
@@ -38,6 +42,8 @@ Page({
     completedLines: [],
     // 彩纸烟花数据
     confettiPieces: [],
+    // 当前活动彩带格子（用于显示格子点击彩带效果）
+    activeConfettiCell: null,
     // 是否显示日历弹窗
     showCalendarModal: false,
     // 当前选中的任务ID
@@ -87,6 +93,51 @@ Page({
     // 确保 gridSize 在计算进度前已经加载
     this.loadGridSize()
     this.loadTasks()
+    // 初始化音效
+    this.initSounds()
+  },
+
+  /**
+   * 初始化音效
+   */
+  initSounds() {
+    // 创建完成任务音效（使用可靠的 CDN 音效）
+    completeSound = wx.createInnerAudioContext()
+    // 使用 Google Fonts 的音效或备用音效
+    completeSound.src = 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'
+    completeSound.volume = 0.4
+
+    // 创建BINGO音效
+    bingoSound = wx.createInnerAudioContext()
+    bingoSound.src = 'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3'
+    bingoSound.volume = 0.5
+
+    // 监听错误事件，避免报错影响用户体验
+    if (completeSound) {
+      completeSound.onError((err) => {
+        console.log('音效加载失败:', err)
+      })
+    }
+    if (bingoSound) {
+      bingoSound.onError((err) => {
+        console.log('音效加载失败:', err)
+      })
+    }
+  },
+
+  /**
+   * 生命周期函数--监听页面卸载
+   */
+  onUnload() {
+    // 销毁音效实例，防止内存泄漏
+    if (completeSound) {
+      completeSound.destroy()
+      completeSound = null
+    }
+    if (bingoSound) {
+      bingoSound.destroy()
+      bingoSound = null
+    }
   },
 
   /**
@@ -237,14 +288,12 @@ Page({
       }
     }
     
-    // 为每个任务添加对应的文字颜色，并清除彩带效果
+    // 为每个任务添加对应的文字颜色
     tasks = tasks.map(task => {
       const textColor = this.getTextColor(task.color)
       return {
         ...task,
-        textColor: textColor,
-        showConfetti: false,
-        cellConfetti: []
+        textColor: textColor
       }
     })
     
@@ -348,9 +397,7 @@ Page({
       console.log(`Task "${task.name}": bg=${task.color}, text=${textColor}`)
       return {
         ...task,
-        textColor: textColor,
-        showConfetti: false,
-        cellConfetti: []
+        textColor: textColor
       }
     })
     console.log('Tasks with textColor:', tasks)
@@ -435,9 +482,7 @@ Page({
       return {
         ...task,
         textColor: textColor,
-        completed: completedTaskNames.has(task.name), // 恢复完成状态
-        showConfetti: false,
-        cellConfetti: []
+        completed: completedTaskNames.has(task.name) // 恢复完成状态
       }
     })
     
@@ -595,7 +640,10 @@ Page({
   showBingoModal(lineCount) {
     // 生成彩纸数据
     const confettiPieces = this.generateConfetti()
-    
+
+    // 播放BINGO音效
+    this.playCompleteSound(true)
+
     this.setData({
       showBingoModal: true,
       bingoLineCount: lineCount,
@@ -741,11 +789,21 @@ Page({
 
   /**
    * 播放完成音效和振动反馈
+   * @param {boolean} isBingo - 是否是BINGO音效
    */
-  playCompleteSound() {
+  playCompleteSound(isBingo = false) {
     // 使用微信内置的短振动反馈
     if (wx.vibrateShort) {
       wx.vibrateShort({ type: 'light' })
+    }
+
+    // 播放音效
+    if (isBingo && bingoSound) {
+      bingoSound.stop()
+      bingoSound.play()
+    } else if (completeSound) {
+      completeSound.stop()
+      completeSound.play()
     }
   },
 
@@ -774,61 +832,87 @@ Page({
    * 标记任务为完成
    */
   completeTask(id) {
+    // 找到任务索引，用于计算位置
+    const taskIndex = this.data.tasks.findIndex(task => task.id === id)
+    if (taskIndex === -1) return
+
     // 生成格子彩纸数据
     const cellConfetti = this.generateCellConfetti()
 
-    // 更新任务状态
-    const tasks = this.data.tasks.map(task => {
-      if (task.id === id) {
-        return {
-          ...task,
-          completed: true,
-          animating: true,
-          showConfetti: true,
-          cellConfetti: cellConfetti
-        }
+    // 使用 selector query 获取格子的实际位置
+    const query = wx.createSelectorQuery().in(this)
+    query.select('.bingo-card').boundingClientRect()
+    query.selectAll('.bingo-cell').boundingClientRect()
+    query.exec((res) => {
+      const cardRect = res[0]
+      const cellRects = res[1]
+
+      if (cardRect && cellRects && cellRects[taskIndex]) {
+        const cellRect = cellRects[taskIndex]
+        // 计算格子中心相对于 bingo-card 的位置（转换为 rpx）
+        const sysInfo = wx.getSystemInfoSync()
+        const rpxRatio = 750 / sysInfo.windowWidth
+
+        // card 有 padding: 24rpx，需要减去 padding 得到相对于 card 内容区的位置
+        const cardPadding = 24
+        const centerX = (cellRect.left - cardRect.left) * rpxRatio + cellRect.width * rpxRatio / 2
+        const centerY = (cellRect.top - cardRect.top) * rpxRatio + cellRect.height * rpxRatio / 2
+
+        // 设置活动彩带格子
+        this.setData({
+          activeConfettiCell: {
+            cellConfetti: cellConfetti,
+            centerX: centerX,
+            centerY: centerY
+          }
+        })
       }
-      return task
-    })
 
-    // 清除选中状态
-    this.setData({ selectedTaskId: null })
-
-    // 播放完成音效
-    this.playCompleteSound()
-
-    // 保存到本地存储
-    const dateKey = this.getCurrentDateKey()
-    wx.setStorageSync(dateKey, tasks)
-    wx.setStorageSync('adhd_tasks', tasks)
-
-    // 更新页面数据
-    this.setData({ tasks }, () => {
-      this.calculateProgress()
-      this.saveDailyProgress(tasks)
-    })
-
-    // 300毫秒后移除动画标记
-    setTimeout(() => {
-      const updatedTasks = this.data.tasks.map(task => {
+      // 更新任务状态
+      const tasks = this.data.tasks.map(task => {
         if (task.id === id) {
-          return { ...task, animating: false }
+          return {
+            ...task,
+            completed: true,
+            animating: true
+          }
         }
         return task
       })
-      this.setData({ tasks: updatedTasks })
-    }, 300)
 
-    // 1500毫秒后移除彩纸效果
-    setTimeout(() => {
-      const updatedTasks = this.data.tasks.map(task => {
-        if (task.id === id) {
-          return { ...task, showConfetti: false, cellConfetti: [] }
-        }
-        return task
+      // 清除选中状态
+      this.setData({ selectedTaskId: null })
+
+      // 播放完成音效
+      this.playCompleteSound()
+
+      // 保存到本地存储
+      const dateKey = this.getCurrentDateKey()
+      wx.setStorageSync(dateKey, tasks)
+      wx.setStorageSync('adhd_tasks', tasks)
+
+      // 更新页面数据
+      this.setData({ tasks }, () => {
+        this.calculateProgress()
+        this.saveDailyProgress(tasks)
       })
-      this.setData({ tasks: updatedTasks })
-    }, 1500)
+
+      // 300毫秒后移除动画标记
+      setTimeout(() => {
+        const updatedTasks = this.data.tasks.map(task => {
+          if (task.id === id) {
+            return { ...task, animating: false }
+          }
+          return task
+        })
+        this.setData({ tasks: updatedTasks })
+      }, 300)
+
+      // 1000毫秒后移除彩纸效果
+      setTimeout(() => {
+        this.setData({ activeConfettiCell: null })
+      }, 1000)
+    })
   },
 
   /**
@@ -841,9 +925,7 @@ Page({
         return {
           ...task,
           completed: false,
-          animating: true,
-          showConfetti: false,
-          cellConfetti: []
+          animating: true
         }
       }
       return task
@@ -873,27 +955,37 @@ Page({
   },
 
   /**
-   * 生成格子彩纸数据（从四周飘落）
-   * @returns {Array} 彩纸数组
+   * 生成烟花小圆点数据（从中心向外炸开，由小变大）
+   * @returns {Array} 烟花圆点数组
    */
   generateCellConfetti() {
-    const shapes = ['circle', 'bar', 'square']
-    const colors = ['gold', 'yellow', 'orange', 'light-gold', 'white']
-    const directions = ['top', 'bottom', 'left', 'right']
+    const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'cyan', 'gold', 'white']
     const pieces = []
-    const count = 16 // 增加彩纸数量，16片
+    const count = 50 // 烟花粒子数量
 
     for (let i = 0; i < count; i++) {
-      const direction = directions[Math.floor(Math.random() * directions.length)]
+      // 随机角度，360度均匀分布
+      const angle = (Math.random() * 360)
+      // 随机距离，从中心向外
+      const distance = 60 + Math.random() * 180 // 60-240rpx 的飞行距离
+      // 计算终点位置
+      const endX = Math.cos(angle * Math.PI / 180) * distance
+      const endY = Math.sin(angle * Math.PI / 180) * distance
+
+      // 随机大小
+      const startSize = 2 + Math.random() * 4 // 起始大小 2-6rpx
+      const endSize = 6 + Math.random() * 10 // 结束大小 6-16rpx
+
       pieces.push({
-        id: `cell-confetti-${i}-${Date.now()}`,
-        shape: shapes[Math.floor(Math.random() * shapes.length)],
+        id: `firework-dot-${i}-${Date.now()}`,
+        shape: 'circle',
         color: colors[Math.floor(Math.random() * colors.length)],
-        direction: direction, // 飘落方向
-        position: Math.random() * 100, // 在边线上的位置 0-100%
-        delay: Math.random() * 0.4, // 0-0.4s 延迟
-        duration: 1 + Math.random() * 0.8, // 1-1.8s 持续时间
-        rotation: Math.random() * 360
+        endX: endX,
+        endY: endY,
+        startSize: startSize,
+        endSize: endSize,
+        delay: Math.random() * 0.02, // 0-0.02s 几乎无延迟
+        duration: 0.2 + Math.random() * 0.15, // 0.2-0.35s 极速爆炸
       })
     }
 
@@ -932,12 +1024,10 @@ Page({
    * 重置所有任务的完成状态
    */
   resetAll() {
-    // 将所有任务的completed设为false，并清除彩带效果
+    // 将所有任务的completed设为false
     const tasks = this.data.tasks.map(task => ({
       ...task,
-      completed: false,
-      showConfetti: false,
-      cellConfetti: []
+      completed: false
     }))
 
     this.setData({ tasks, selectedTaskId: null })
@@ -1060,9 +1150,7 @@ Page({
         const textColor = this.getTextColor(task.color)
         return {
           ...task,
-          textColor: textColor,
-          showConfetti: false,
-          cellConfetti: []
+          textColor: textColor
         }
       })
       

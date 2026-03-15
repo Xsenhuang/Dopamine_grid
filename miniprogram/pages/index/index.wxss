@@ -286,7 +286,7 @@
 /* 多巴胺格子 */
 .bingo-card {
   padding: 24rpx;
-  min-height: calc(100vw - 60rpx);
+  margin-bottom: 24rpx;
   background: #FFFFFF;
   border-radius: 32rpx;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
@@ -774,131 +774,110 @@
   to { opacity: 1; }
 }
 
-/* ========== 格子彩纸动效 ========== */
-.cell-confetti-container {
+/* ========== 格子烟花动效 ========== */
+/* 烟花覆盖层 - 定位在格子中心 */
+.cell-confetti-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  width: 0;
+  height: 0;
   overflow: visible;
   pointer-events: none;
-  z-index: 10;
+  z-index: 1000;
+  /* left 和 top 由 JS 动态设置 */
 }
 
-.cell-confetti {
+/* 烟花小圆点 */
+.firework-dot {
   position: absolute;
-  width: 10rpx;
-  height: 10rpx;
-  opacity: 0.95;
-}
-
-/* 从上方飘落的彩纸 */
-.cell-confetti.dir-top {
-  top: -10rpx;
-  animation: cell-confetti-fall-top linear forwards;
-}
-
-/* 从下方飘落的彩纸 */
-.cell-confetti.dir-bottom {
-  bottom: -10rpx;
-  animation: cell-confetti-fall-bottom linear forwards;
-}
-
-/* 从左方飘落的彩纸 */
-.cell-confetti.dir-left {
-  left: -10rpx;
-  animation: cell-confetti-fall-left linear forwards;
-}
-
-/* 从右方飘落的彩纸 */
-.cell-confetti.dir-right {
-  right: -10rpx;
-  animation: cell-confetti-fall-right linear forwards;
-}
-
-/* 圆形彩纸 */
-.cell-confetti.circle {
+  left: 0;
+  top: 0;
   border-radius: 50%;
+  opacity: 0.95;
+  width: var(--start-size, 4rpx);
+  height: var(--start-size, 4rpx);
+  margin-left: calc(var(--start-size, 4rpx) / -2);
+  margin-top: calc(var(--start-size, 4rpx) / -2);
+  animation: firework-explode ease-out forwards;
+  box-shadow: 0 0 6rpx 2rpx currentColor;
 }
 
-/* 条形彩纸 */
-.cell-confetti.bar {
-  width: 5rpx;
-  height: 14rpx;
-  border-radius: 2rpx;
+/* 烟花圆点颜色 - 五颜六色 */
+.firework-dot.red {
+  background: #FF4444;
+  color: rgba(255, 68, 68, 0.6);
 }
 
-/* 方形彩纸 */
-.cell-confetti.square {
-  border-radius: 1rpx;
+.firework-dot.orange {
+  background: #FF8C00;
+  color: rgba(255, 140, 0, 0.6);
 }
 
-/* 格子彩纸颜色 */
-.cell-confetti.gold {
+.firework-dot.yellow {
   background: #FFD700;
+  color: rgba(255, 215, 0, 0.6);
 }
 
-.cell-confetti.yellow {
-  background: #FFE135;
+.firework-dot.green {
+  background: #32CD32;
+  color: rgba(50, 205, 50, 0.6);
 }
 
-.cell-confetti.orange {
-  background: #FFB347;
+.firework-dot.blue {
+  background: #1E90FF;
+  color: rgba(30, 144, 255, 0.6);
 }
 
-.cell-confetti.light-gold {
-  background: #F4E4BC;
+.firework-dot.purple {
+  background: #9370DB;
+  color: rgba(147, 112, 219, 0.6);
 }
 
-.cell-confetti.white {
+.firework-dot.pink {
+  background: #FF69B4;
+  color: rgba(255, 105, 180, 0.6);
+}
+
+.firework-dot.cyan {
+  background: #00CED1;
+  color: rgba(0, 206, 209, 0.6);
+}
+
+.firework-dot.gold {
+  background: #FFD700;
+  color: rgba(255, 215, 0, 0.6);
+}
+
+.firework-dot.white {
   background: #FFFFFF;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-/* 从上方飘落动画 */
-@keyframes cell-confetti-fall-top {
+/* 烟花爆炸动画 - 由小到大炸开 */
+@keyframes firework-explode {
   0% {
-    transform: translateY(0) rotate(0deg) scale(1);
+    transform: translate(0, 0);
+    width: var(--start-size, 4rpx);
+    height: var(--start-size, 4rpx);
+    margin-left: calc(var(--start-size, 4rpx) / -2);
+    margin-top: calc(var(--start-size, 4rpx) / -2);
     opacity: 1;
   }
-  100% {
-    transform: translateY(80rpx) rotate(360deg) scale(0.6);
-    opacity: 0;
-  }
-}
-
-/* 从下方飘落动画 */
-@keyframes cell-confetti-fall-bottom {
-  0% {
-    transform: translateY(0) rotate(0deg) scale(1);
+  30% {
     opacity: 1;
   }
-  100% {
-    transform: translateY(-80rpx) rotate(-360deg) scale(0.6);
-    opacity: 0;
-  }
-}
-
-/* 从左方飘落动画 */
-@keyframes cell-confetti-fall-left {
-  0% {
-    transform: translateX(0) rotate(0deg) scale(1);
-    opacity: 1;
+  70% {
+    width: var(--end-size, 12rpx);
+    height: var(--end-size, 12rpx);
+    margin-left: calc(var(--end-size, 12rpx) / -2);
+    margin-top: calc(var(--end-size, 12rpx) / -2);
+    opacity: 0.8;
   }
   100% {
-    transform: translateX(80rpx) rotate(360deg) scale(0.6);
-    opacity: 0;
-  }
-}
-
-/* 从右方飘落动画 */
-@keyframes cell-confetti-fall-right {
-  0% {
-    transform: translateX(0) rotate(0deg) scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(-80rpx) rotate(-360deg) scale(0.6);
+    transform: translate(var(--end-x, 100rpx), var(--end-y, 100rpx));
+    width: var(--end-size, 12rpx);
+    height: var(--end-size, 12rpx);
+    margin-left: calc(var(--end-size, 12rpx) / -2);
+    margin-top: calc(var(--end-size, 12rpx) / -2);
     opacity: 0;
   }
 }
