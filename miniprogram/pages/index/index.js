@@ -48,10 +48,6 @@ Page({
     showCalendarModal: false,
     // 当前选中的任务ID
     selectedTaskId: null,
-    // 拖拽相关
-    draggingTaskId: null,
-    draggingIndex: null,
-    isDragging: false,
     // 日历相关数据
     calendarYear: 2026,
     calendarMonth: 3,
@@ -1264,102 +1260,6 @@ Page({
       completed: dailyData.completed,
       total: dailyData.total
     }
-  },
-
-  /**
-   * 开始拖拽任务
-   */
-  startDrag(e) {
-    const { id, index } = e.currentTarget.dataset
-    console.log('Start dragging task:', id, index)
-    
-    // 标记拖拽中的任务
-    const tasks = this.data.tasks.map((task, i) => ({
-      ...task,
-      dragging: i === parseInt(index)
-    }))
-    
-    this.setData({
-      tasks,
-      draggingTaskId: id,
-      draggingIndex: parseInt(index),
-      isDragging: true
-    })
-    
-    // 显示拖拽提示
-    wx.showToast({
-      title: '长按拖拽排序',
-      icon: 'none',
-      duration: 1500
-    })
-  },
-
-  /**
-   * 拖拽移动中
-   */
-  onDragMove(e) {
-    if (!this.data.isDragging) return
-    
-    // 阻止默认行为，防止页面滚动
-    e.preventDefault()
-    
-    // 获取触摸位置
-    const touch = e.touches[0]
-    console.log('Dragging at:', touch.clientX, touch.clientY)
-    
-    // 计算当前触摸位置对应的格子索引
-    const gridSize = this.data.gridSize
-    const cellSize = 75 // 每个格子的大致尺寸（rpx）
-    const containerLeft = 20 // 容器左边距
-    const containerTop = 200 // 容器上边距
-    
-    // 转换为格子坐标
-    const col = Math.floor((touch.clientX - containerLeft) / cellSize)
-    const row = Math.floor((touch.clientY - containerTop) / cellSize)
-    const targetIndex = row * gridSize + col
-    
-    // 确保索引在有效范围内
-    if (targetIndex >= 0 && targetIndex < this.data.tasks.length && targetIndex !== this.data.draggingIndex) {
-      // 实时交换位置
-      const tasks = [...this.data.tasks]
-      const draggedTask = tasks[this.data.draggingIndex]
-      tasks.splice(this.data.draggingIndex, 1)
-      tasks.splice(targetIndex, 0, draggedTask)
-      
-      this.setData({
-        tasks,
-        draggingIndex: targetIndex // 更新拖拽索引
-      })
-    }
-  },
-
-  /**
-   * 拖拽结束
-   */
-  onDragEnd(e) {
-    if (!this.data.isDragging) return
-    
-    // 清除拖拽状态
-    const tasks = this.data.tasks.map(task => ({
-      ...task,
-      dragging: false
-    }))
-    
-    this.setData({
-      tasks,
-      isDragging: false,
-      draggingTaskId: null,
-      draggingIndex: null
-    })
-    
-    // 保存到本地存储
-    wx.setStorageSync('adhd_tasks', tasks)
-    
-    wx.showToast({
-      title: '位置已更新',
-      icon: 'success',
-      duration: 1000
-    })
   },
 
   /**

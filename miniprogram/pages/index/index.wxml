@@ -54,14 +54,10 @@
         wx:for="{{tasks}}"
         wx:for-index="index"
         wx:key="id"
-        class="bingo-cell {{item.completed ? 'completed' : ''}} {{item.animating ? 'pulse' : ''}} {{item.dragging ? 'dragging' : ''}} {{selectedTaskId === item.id ? 'selected' : ''}}"
+        class="bingo-cell {{item.completed ? 'completed' : ''}} {{item.animating ? 'pulse' : ''}} {{selectedTaskId === item.id ? 'selected' : ''}}"
         style="background-color: {{item.color}}; display: {{index < gridSize * gridSize ? 'flex' : 'none'}};"
         bindtap="toggleTask"
         data-id="{{item.id}}"
-        bindlongpress="startDrag"
-        data-index="{{index}}"
-        bindtouchmove="onDragMove"
-        bindtouchend="onDragEnd"
       >
         <text class="cell-text" style="color: {{item.completed || selectedTaskId === item.id ? 'white' : (item.textColor || '#666666')}};">{{item.name}}</text>
       </view>
