@@ -97,27 +97,42 @@ Page({
    * 初始化音效
    */
   initSounds() {
-    // 创建完成任务音效（使用可靠的 CDN 音效）
-    completeSound = wx.createInnerAudioContext()
-    // 使用 Google Fonts 的音效或备用音效
-    completeSound.src = 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'
-    completeSound.volume = 0.4
+    try {
+      // 创建完成任务音效（使用本地音频文件）
+      completeSound = wx.createInnerAudioContext()
+      completeSound.src = '/audio/complete.mp3'
+      completeSound.volume = 0.4
 
-    // 创建BINGO音效
-    bingoSound = wx.createInnerAudioContext()
-    bingoSound.src = 'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3'
-    bingoSound.volume = 0.5
+      // 监听加载成功事件
+      completeSound.onCanplay(() => {
+        console.log('complete.mp3 加载成功')
+      })
 
-    // 监听错误事件，避免报错影响用户体验
-    if (completeSound) {
+      // 监听错误事件
       completeSound.onError((err) => {
-        console.log('音效加载失败:', err)
+        console.log('complete.mp3 加载失败:', err)
+        completeSound = null
       })
-    }
-    if (bingoSound) {
+
+      // 创建BINGO音效
+      bingoSound = wx.createInnerAudioContext()
+      bingoSound.src = '/audio/bingo.mp3'
+      bingoSound.volume = 0.5
+
+      // 监听加载成功事件
+      bingoSound.onCanplay(() => {
+        console.log('bingo.mp3 加载成功')
+      })
+
+      // 监听错误事件
       bingoSound.onError((err) => {
-        console.log('音效加载失败:', err)
+        console.log('bingo.mp3 加载失败:', err)
+        bingoSound = null
       })
+    } catch (err) {
+      console.log('音效初始化失败，使用静默模式')
+      completeSound = null
+      bingoSound = null
     }
   },
 
@@ -793,13 +808,18 @@ Page({
       wx.vibrateShort({ type: 'light' })
     }
 
-    // 播放音效
-    if (isBingo && bingoSound) {
-      bingoSound.stop()
-      bingoSound.play()
-    } else if (completeSound) {
-      completeSound.stop()
-      completeSound.play()
+    // 播放音效（如果音频已加载）
+    try {
+      if (isBingo && bingoSound) {
+        bingoSound.stop()
+        bingoSound.play()
+      } else if (completeSound) {
+        completeSound.stop()
+        completeSound.play()
+      }
+    } catch (err) {
+      // 音频播放失败时静默处理
+      console.log('音效播放失败:', err)
     }
   },
 
@@ -1835,5 +1855,40 @@ Page({
         }
       }
     })
+  },
+
+  /**
+   * 分享到微信群
+   * 用户点击右上角菜单"转发"时触发
+   */
+  onShareAppMessage() {
+    const { progressPercent, completedCount, totalCount } = this.data
+
+    return {
+      title: `🎯 多巴胺格子 · 今日完成${progressPercent}%`,
+      path: '/pages/index/index',
+      imageUrl: '',
+      success: function(res) {
+        console.log('分享成功', res)
+      },
+      fail: function(err) {
+        console.log('分享失败', err)
+      }
+    }
+  },
+
+  /**
+   * 分享到朋友圈
+   * 用户点击右上角菜单"分享到朋友圈"时触发
+   * 注意：需要基础库版本 2.11.3 及以上
+   */
+  onShareTimeline() {
+    const { progressPercent } = this.data
+
+    return {
+      title: `🎯 我的多巴胺格子今日完成${progressPercent}%，一起来打卡吧！`,
+      query: '',
+      imageUrl: ''
+    }
   }
 })

@@ -374,5 +374,54 @@ Page({
     this.initCurrentWeek()
     this.setData({ showCalendarModal: false })
     this.loadHeatmapData()
+  },
+
+  /**
+   * 分享到微信群
+   * 用户点击右上角菜单"转发"时触发
+   */
+  onShareAppMessage() {
+    const { taskRankings, weekRangeText } = this.data
+
+    let shareTitle = '📊 多巴胺格子 · 统计数据'
+
+    if (taskRankings && taskRankings.length > 0) {
+      const topTask = taskRankings[0]
+      shareTitle = `🏆 我最坚持的习惯是「${topTask.name}」，已完成${topTask.total}次！`
+    }
+
+    return {
+      title: shareTitle,
+      path: '/pages/stats/stats',
+      imageUrl: '',
+      success: function(res) {
+        console.log('分享成功', res)
+      },
+      fail: function(err) {
+        console.log('分享失败', err)
+      }
+    }
+  },
+
+  /**
+   * 分享到朋友圈
+   * 用户点击右上角菜单"分享到朋友圈"时触发
+   * 注意：需要基础库版本 2.11.3 及以上
+   */
+  onShareTimeline() {
+    const { taskRankings } = this.data
+
+    let shareTitle = '📊 来看看我的多巴胺格子统计数据吧！'
+
+    if (taskRankings && taskRankings.length > 0) {
+      const topTask = taskRankings[0]
+      shareTitle = `🏆 我最坚持的习惯是「${topTask.name}」，已完成${topTask.total}次！快来一起打卡吧！`
+    }
+
+    return {
+      title: shareTitle,
+      query: '',
+      imageUrl: ''
+    }
   }
 })
